@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   security-gates:
+    name: Security Gates
     runs-on: ubuntu-latest
     env:
       SECURITY_GATE_SEVERITY: HIGH,CRITICAL

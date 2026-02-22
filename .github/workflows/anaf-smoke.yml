@@ -10,6 +10,7 @@ on:
 
 jobs:
   anaf-smoke:
+    name: ANAF Smoke
     runs-on: ubuntu-latest
 
     services:
