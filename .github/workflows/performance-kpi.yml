@@ -34,6 +34,8 @@ jobs:
       NODE_ENV: test
       PORT: 4000
       DATABASE_URL: postgresql://sega:sega@localhost:5432/sega_accounting?schema=public
+      CI_ADMIN_SECRET: ci-admin-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_PERF_SECRET: ci-perf-${{ github.run_id }}-${{ github.run_attempt }}
       CORS_ORIGIN: http://localhost:5173
       ADMIN_EMAIL: admin@sega.local
       PERF_USER_EMAIL: perf.accountant@sega.local
@@ -76,12 +78,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Generate CI credentials
-        run: |
-          echo "ADMIN_PASSWORD=ci-admin-$(uuidgen)" >> "${GITHUB_ENV}"
-          echo "PERF_USER_PASSWORD=ci-perf-$(uuidgen)" >> "${GITHUB_ENV}"
-
       - name: Prepare database (schema + hardening + seed)
+        env:
+          ADMIN_PASSWORD: ${{ env.CI_ADMIN_SECRET }}
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
         run: |
           npm run db:bootstrap -w backend
           npm run seed -w backend
@@ -91,6 +91,8 @@ jobs:
         run: npm run build -w backend
 
       - name: Start backend
+        env:
+          ADMIN_PASSWORD: ${{ env.CI_ADMIN_SECRET }}
         run: |
           node apps/backend/dist/server.js > /tmp/backend-perf.log 2>&1 &
           echo $! > /tmp/backend-perf.pid
@@ -109,11 +111,15 @@ jobs:
           exit 1
 
       - name: Run k6 performance budgets
+        env:
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
         run: |
           mkdir -p apps/backend/perf/results
           npm run perf:k6:ci -w backend
 
       - name: Run JMeter performance budgets
+        env:
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
         run: |
           PERF_JMETER_THREADS=4 \
           PERF_JMETER_RAMP_UP=4 \
