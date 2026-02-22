@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://www.xbrl.org/2003/instance"
+  xmlns:xbrli="http://www.xbrl.org/2003/instance"
+  xmlns:sega="http://sega.local/xbrl/financial/2026"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified"
+>
+  <xs:import namespace="http://sega.local/xbrl/financial/2026" schemaLocation="sega-financial-statements-2026.xsd" />
+
+  <xs:complexType name="IdentifierType">
+    <xs:simpleContent>
+      <xs:extension base="xs:string">
+        <xs:attribute name="scheme" type="xs:anyURI" use="required" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:complexType name="EntityType">
+    <xs:sequence>
+      <xs:element name="identifier" type="xbrli:IdentifierType" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="PeriodType">
+    <xs:sequence>
+      <xs:element name="startDate" type="xs:date" />
+      <xs:element name="endDate" type="xs:date" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ContextType">
+    <xs:sequence>
+      <xs:element name="entity" type="xbrli:EntityType" />
+      <xs:element name="period" type="xbrli:PeriodType" />
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="UnitType">
+    <xs:sequence>
+      <xs:element name="measure" type="xs:string" />
+    </xs:sequence>
+    <xs:attribute name="id" type="xs:ID" use="required" />
+  </xs:complexType>
+
+  <xs:complexType name="XbrlType">
+    <xs:sequence>
+      <xs:element name="context" type="xbrli:ContextType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:element name="unit" type="xbrli:UnitType" minOccurs="1" maxOccurs="unbounded" />
+      <xs:any namespace="http://sega.local/xbrl/financial/2026" processContents="strict" minOccurs="1" maxOccurs="unbounded" />
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="context" type="xbrli:ContextType" />
+  <xs:element name="unit" type="xbrli:UnitType" />
+  <xs:element name="xbrl" type="xbrli:XbrlType" />
+</xs:schema>

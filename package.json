@@ -1,0 +1,46 @@
+{
+  "name": "sega-accounting",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm run test -w backend",
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "db:up": "docker-compose up -d db redis minio minio-init",
+    "db:down": "docker-compose down -v",
+    "db:logs": "docker-compose logs -f db redis minio",
+    "nginx:up": "docker-compose --profile app up -d nginx",
+    "observability:up": "docker-compose --profile observability up -d",
+    "elk:up": "docker-compose --profile logging up -d",
+    "infra:down": "docker-compose down",
+    "db:push": "npm run prisma:push -w backend",
+    "db:enterprise": "npm run prisma:enterprise -w backend",
+    "db:bootstrap": "npm run db:bootstrap -w backend",
+    "db:bootstrap:reset": "npm run db:bootstrap:reset -w backend",
+    "db:migrate": "npm run prisma:migrate -w backend",
+    "db:seed": "npm run seed -w backend",
+    "backend:dev": "npm run dev -w backend",
+    "auth-service:dev": "npm run dev:auth-service -w backend",
+    "invoice-service:dev": "npm run dev:invoice-service -w backend",
+    "frontend:dev": "npm run dev -w frontend",
+    "anaf:smoke": "npm run anaf:smoke -w backend",
+    "open-banking:smoke": "npm run open-banking:smoke -w backend",
+    "anaf:smoke:up": "bash scripts/anaf-smoke-up.sh",
+    "perf:seed": "npm run perf:seed -w backend",
+    "perf:k6": "npm run perf:k6 -w backend",
+    "perf:jmeter": "npm run perf:jmeter -w backend",
+    "perf:kpi": "npm run perf:seed && npm run perf:k6"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
