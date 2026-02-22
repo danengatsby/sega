@@ -1,0 +1,101 @@
+name: ANAF Smoke
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  anaf-smoke:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sega
+          POSTGRES_PASSWORD: sega
+          POSTGRES_DB: sega_accounting
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sega -d sega_accounting"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      PORT: 4000
+      DATABASE_URL: postgresql://sega:sega@localhost:5432/sega_accounting?schema=public
+      JWT_SECRET: ci-secret-change-me
+      CORS_ORIGIN: http://localhost:5173
+      ADMIN_EMAIL: admin@sega.local
+      ADMIN_PASSWORD: admin123!
+      ANAF_COMPANY_NAME: SEGA DEMO SRL
+      ANAF_COMPANY_CUI: RO12345678
+      ANAF_COMPANY_ADDRESS: Bucuresti, Romania
+      ANAF_COMPANY_CAEN: 6201
+      ANAF_DECLARANT_NAME: Administrator
+      ANAF_DECLARANT_FUNCTION: Administrator
+      ANAF_VALIDATE_XSD: "true"
+      ANAF_XSD_DIR: apps/backend/anaf/xsd
+      ANAF_PROFILE_VERSION: SPV-MVP-1.0
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install xmllint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxml2-utils
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare database schema
+        run: |
+          npm run prisma:generate -w backend
+          npm run prisma:push -w backend
+
+      - name: Build backend
+        run: npm run build -w backend
+
+      - name: Start backend
+        run: |
+          node apps/backend/dist/server.js > /tmp/backend.log 2>&1 &
+          echo $! > /tmp/backend.pid
+
+      - name: Wait for health
+        run: |
+          for i in {1..60}; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/api/health || true)
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend failed to start"
+          cat /tmp/backend.log || true
+          exit 1
+
+      - name: Run ANAF smoke
+        run: npm run anaf:smoke -w backend
+
+      - name: Backend log
+        if: always()
+        run: cat /tmp/backend.log || true
+
+      - name: Stop backend
+        if: always()
+        run: kill $(cat /tmp/backend.pid) || true

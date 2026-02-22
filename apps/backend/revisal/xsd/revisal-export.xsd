@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="urn:ro:itm:revisal:1.0"
+  xmlns="urn:ro:itm:revisal:1.0"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified"
+>
+  <xs:simpleType name="PeriodType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="\d{4}-\d{2}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="CuiType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[1-9]\d{1,12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="CnpType">
+    <xs:restriction base="xs:string">
+      <xs:pattern value="[1-9]\d{12}"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ContractTypeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="CIM"/>
+      <xs:enumeration value="CIP"/>
+      <xs:enumeration value="CONVENTIE"/>
+      <xs:enumeration value="MANDAT"/>
+      <xs:enumeration value="OTHER"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="ContractStatusType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ACTIVE"/>
+      <xs:enumeration value="INACTIVE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="OperationType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="HIRE"/>
+      <xs:enumeration value="UPDATE"/>
+      <xs:enumeration value="TERMINATION"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="MoneyType">
+    <xs:restriction base="xs:decimal">
+      <xs:minExclusive value="0"/>
+      <xs:fractionDigits value="2"/>
+      <xs:totalDigits value="18"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:complexType name="CompanyType">
+    <xs:sequence>
+      <xs:element name="Cui" type="CuiType"/>
+      <xs:element name="Name" type="xs:string"/>
+      <xs:element name="Address" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="HeaderType">
+    <xs:sequence>
+      <xs:element name="Application" type="xs:string"/>
+      <xs:element name="ExportVersion" type="xs:string"/>
+      <xs:element name="GeneratedAt" type="xs:dateTime"/>
+      <xs:element name="Period" type="PeriodType"/>
+      <xs:element name="DeliveryReference" type="xs:string"/>
+      <xs:element name="Company" type="CompanyType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SummaryType">
+    <xs:sequence>
+      <xs:element name="TotalContracts" type="xs:nonNegativeInteger"/>
+      <xs:element name="ActiveContracts" type="xs:nonNegativeInteger"/>
+      <xs:element name="InactiveContracts" type="xs:nonNegativeInteger"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ContractType">
+    <xs:sequence>
+      <xs:element name="EmployeeId" type="xs:string"/>
+      <xs:element name="Cnp" type="CnpType"/>
+      <xs:element name="FullName" type="xs:string"/>
+      <xs:element name="ContractType" type="ContractTypeType"/>
+      <xs:element name="StartDate" type="xs:date"/>
+      <xs:element name="EndDate" type="xs:date" minOccurs="0"/>
+      <xs:element name="BaseSalary" type="MoneyType"/>
+      <xs:element name="Status" type="ContractStatusType"/>
+      <xs:element name="Operation" type="OperationType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ContractsType">
+    <xs:sequence>
+      <xs:element name="Contract" type="ContractType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:element name="RevisalExport">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Header" type="HeaderType"/>
+        <xs:element name="Summary" type="SummaryType"/>
+        <xs:element name="Contracts" type="ContractsType"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

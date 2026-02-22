@@ -1,0 +1,153 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: logstash-pipeline
+  namespace: sega
+data:
+  logstash.conf: |
+    input {
+      tcp {
+        port => 5044
+        codec => json_lines
+      }
+    }
+    output {
+      elasticsearch {
+        hosts => ["http://elasticsearch:9200"]
+        index => "sega-logs-%{+YYYY.MM.dd}"
+      }
+      stdout { codec => rubydebug }
+    }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch
+  namespace: sega
+spec:
+  serviceName: elasticsearch
+  replicas: 1
+  selector:
+    matchLabels:
+      app: elasticsearch
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+    spec:
+      containers:
+        - name: elasticsearch
+          image: docker.elastic.co/elasticsearch/elasticsearch:8.16.1
+          env:
+            - name: discovery.type
+              value: single-node
+            - name: xpack.security.enabled
+              value: 'false'
+            - name: ES_JAVA_OPTS
+              value: -Xms512m -Xmx512m
+          ports:
+            - containerPort: 9200
+          volumeMounts:
+            - name: elasticsearch-data
+              mountPath: /usr/share/elasticsearch/data
+  volumeClaimTemplates:
+    - metadata:
+        name: elasticsearch-data
+      spec:
+        accessModes: ['ReadWriteOnce']
+        resources:
+          requests:
+            storage: 20Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: sega
+spec:
+  selector:
+    app: elasticsearch
+  ports:
+    - port: 9200
+      targetPort: 9200
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: logstash
+  namespace: sega
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: logstash
+  template:
+    metadata:
+      labels:
+        app: logstash
+    spec:
+      containers:
+        - name: logstash
+          image: docker.elastic.co/logstash/logstash:8.16.1
+          ports:
+            - containerPort: 5044
+            - containerPort: 9600
+          volumeMounts:
+            - name: pipeline
+              mountPath: /usr/share/logstash/pipeline
+      volumes:
+        - name: pipeline
+          configMap:
+            name: logstash-pipeline
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: logstash
+  namespace: sega
+spec:
+  selector:
+    app: logstash
+  ports:
+    - name: beats
+      port: 5044
+      targetPort: 5044
+    - name: http
+      port: 9600
+      targetPort: 9600
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: sega
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+        - name: kibana
+          image: docker.elastic.co/kibana/kibana:8.16.1
+          env:
+            - name: ELASTICSEARCH_HOSTS
+              value: http://elasticsearch:9200
+          ports:
+            - containerPort: 5601
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: sega
+spec:
+  selector:
+    app: kibana
+  ports:
+    - port: 5601
+      targetPort: 5601
