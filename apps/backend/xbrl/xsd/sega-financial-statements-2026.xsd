@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  targetNamespace="http://sega.local/xbrl/financial/2026"
+  xmlns:sega="http://sega.local/xbrl/financial/2026"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified"
+>
+  <xs:complexType name="MonetaryFactType">
+    <xs:simpleContent>
+      <xs:extension base="xs:decimal">
+        <xs:attribute name="contextRef" type="xs:IDREF" use="required" />
+        <xs:attribute name="unitRef" type="xs:IDREF" use="required" />
+        <xs:attribute name="decimals" type="xs:string" use="optional" />
+      </xs:extension>
+    </xs:simpleContent>
+  </xs:complexType>
+
+  <xs:element name="TrialBalanceDebitTotal" type="sega:MonetaryFactType" />
+  <xs:element name="TrialBalanceCreditTotal" type="sega:MonetaryFactType" />
+  <xs:element name="Revenues" type="sega:MonetaryFactType" />
+  <xs:element name="Expenses" type="sega:MonetaryFactType" />
+  <xs:element name="NetProfit" type="sega:MonetaryFactType" />
+  <xs:element name="Assets" type="sega:MonetaryFactType" />
+  <xs:element name="Liabilities" type="sega:MonetaryFactType" />
+  <xs:element name="Equity" type="sega:MonetaryFactType" />
+  <xs:element name="LiabilitiesAndEquity" type="sega:MonetaryFactType" />
+  <xs:element name="TaxableSales" type="sega:MonetaryFactType" />
+  <xs:element name="VatCollected" type="sega:MonetaryFactType" />
+  <xs:element name="PayrollCas" type="sega:MonetaryFactType" />
+  <xs:element name="PayrollCass" type="sega:MonetaryFactType" />
+  <xs:element name="PayrollCam" type="sega:MonetaryFactType" />
+  <xs:element name="PayrollTax" type="sega:MonetaryFactType" />
+  <xs:element name="EstimatedProfitTax" type="sega:MonetaryFactType" />
+  <xs:element name="TotalFiscalLiabilities" type="sega:MonetaryFactType" />
+</xs:schema>

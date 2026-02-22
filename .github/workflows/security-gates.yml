@@ -1,0 +1,48 @@
+name: Security Gates
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  security-gates:
+    name: Security Gates
+    runs-on: ubuntu-latest
+    env:
+      SECURITY_GATE_SEVERITY: HIGH,CRITICAL
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dependency scan (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          vuln-type: library
+          severity: ${{ env.SECURITY_GATE_SEVERITY }}
+          ignore-unfixed: true
+          format: table
+          exit-code: '1'
+
+      - name: Secret scan (HIGH/CRITICAL)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          severity: ${{ env.SECURITY_GATE_SEVERITY }}
+          format: table
+          exit-code: '1'
+          skip-files: apps/backend/.env.example,docker-compose.yml,.github/workflows/anaf-smoke.yml

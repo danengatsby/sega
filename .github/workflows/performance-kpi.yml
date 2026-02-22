@@ -1,0 +1,155 @@
+name: Performance KPI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  performance-kpi:
+    name: Performance KPI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sega
+          POSTGRES_PASSWORD: sega
+          POSTGRES_DB: sega_accounting
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sega -d sega_accounting"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      NODE_ENV: test
+      PORT: 4000
+      DATABASE_URL: postgresql://sega:sega@localhost:5432/sega_accounting?schema=public
+      CI_ADMIN_SECRET: ci-admin-${{ github.run_id }}-${{ github.run_attempt }}
+      CI_PERF_SECRET: ci-perf-${{ github.run_id }}-${{ github.run_attempt }}
+      CORS_ORIGIN: http://localhost:5173
+      ADMIN_EMAIL: admin@sega.local
+      PERF_USER_EMAIL: perf.accountant@sega.local
+      PERF_BASE_URL: http://127.0.0.1:4000
+      PERF_VUS: 8
+      PERF_WARMUP: 10s
+      PERF_DURATION: 40s
+      PERF_SLEEP_SECONDS: 0.2
+      PERF_TARGET_P95_MS: 300
+      PERF_TARGET_P99_MS: 700
+      PERF_DASHBOARD_P95_MS: 1000
+      PERF_DASHBOARD_P99_MS: 2000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup JMeter
+        run: |
+          JMETER_VERSION=5.6.3
+          curl -fsSLo /tmp/apache-jmeter.tgz "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+          tar -xzf /tmp/apache-jmeter.tgz -C "${HOME}"
+          echo "${HOME}/apache-jmeter-${JMETER_VERSION}/bin" >> "${GITHUB_PATH}"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare database (schema + hardening + seed)
+        env:
+          ADMIN_PASSWORD: ${{ env.CI_ADMIN_SECRET }}
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
+        run: |
+          npm run db:bootstrap -w backend
+          npm run seed -w backend
+          npm run perf:seed -w backend
+
+      - name: Build backend
+        run: npm run build -w backend
+
+      - name: Start backend
+        env:
+          ADMIN_PASSWORD: ${{ env.CI_ADMIN_SECRET }}
+        run: |
+          node apps/backend/dist/server.js > /tmp/backend-perf.log 2>&1 &
+          echo $! > /tmp/backend-perf.pid
+
+      - name: Wait for health
+        run: |
+          for i in {1..60}; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:4000/api/health || true)
+            if [ "$code" = "200" ]; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend failed to start"
+          cat /tmp/backend-perf.log || true
+          exit 1
+
+      - name: Run k6 performance budgets
+        env:
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
+        run: |
+          mkdir -p apps/backend/perf/results
+          npm run perf:k6:ci -w backend
+
+      - name: Run JMeter performance budgets
+        env:
+          PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
+        run: |
+          PERF_JMETER_THREADS=4 \
+          PERF_JMETER_RAMP_UP=4 \
+          PERF_JMETER_LOOPS=20 \
+          PERF_JMETER_THINK_TIME_MS=150 \
+          npm run perf:jmeter -w backend
+
+      - name: Upload k6 summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-k6-summary
+          path: apps/backend/perf/results/k6-summary.json
+          if-no-files-found: warn
+
+      - name: Upload JMeter artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-jmeter-artifacts
+          path: |
+            apps/backend/perf/results/jmeter/kpi-routes.jtl
+            apps/backend/perf/results/jmeter/html-report
+          if-no-files-found: warn
+
+      - name: Backend log
+        if: always()
+        run: cat /tmp/backend-perf.log || true
+
+      - name: Stop backend
+        if: always()
+        run: kill $(cat /tmp/backend-perf.pid) || true
