@@ -34,7 +34,7 @@
           </elementProp>
           <elementProp name="perfPassword" elementType="Argument">
             <stringProp name="Argument.name">perfPassword</stringProp>
-            <stringProp name="Argument.value">${__P(perfPassword,PerfKpi!Pass2026)}</stringProp>
+            <stringProp name="Argument.value">${__P(perfPassword,)}</stringProp>
             <stringProp name="Argument.metadata">=</stringProp>
           </elementProp>
         </collectionProp>

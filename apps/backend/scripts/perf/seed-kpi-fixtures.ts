@@ -7,7 +7,7 @@ import { round2 } from '../../src/utils/number.js';
 
 const PERF_COMPANY_CODE = process.env.PERF_COMPANY_CODE ?? 'default';
 const PERF_USER_EMAIL = process.env.PERF_USER_EMAIL ?? 'perf.accountant@sega.local';
-const PERF_USER_PASSWORD = process.env.PERF_USER_PASSWORD ?? 'PerfKpi!Pass2026';
+const PERF_USER_PASSWORD = readRequiredEnv('PERF_USER_PASSWORD');
 const CUSTOMER_PARTNERS = readPositiveInt('PERF_CUSTOMER_PARTNERS', 120);
 const SUPPLIER_PARTNERS = readPositiveInt('PERF_SUPPLIER_PARTNERS', 80);
 const CUSTOMER_INVOICES = readPositiveInt('PERF_CUSTOMER_INVOICES', 2200);
@@ -27,6 +27,14 @@ function readPositiveInt(envName: string, fallback: number): number {
     throw new Error(`${envName} trebuie să fie număr întreg pozitiv.`);
   }
   return parsed;
+}
+
+function readRequiredEnv(envName: string): string {
+  const raw = process.env[envName];
+  if (typeof raw !== 'string' || raw.trim().length === 0) {
+    throw new Error(`${envName} este obligatoriu.`);
+  }
+  return raw;
 }
 
 function buildCui(prefix: string, value: number): string {

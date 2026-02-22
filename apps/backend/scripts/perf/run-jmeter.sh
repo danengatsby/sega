@@ -57,6 +57,12 @@ if [[ "${API_BASE_PATH}" == "/" ]]; then
   API_BASE_PATH=""
 fi
 
+PERF_USER_PASSWORD="${PERF_USER_PASSWORD:-}"
+if [[ -z "${PERF_USER_PASSWORD}" ]]; then
+  echo "Missing PERF_USER_PASSWORD environment variable."
+  exit 1
+fi
+
 echo "Running JMeter KPI suite against ${BASE_URL}"
 "${JMETER_BIN}" \
   -n \
@@ -77,7 +83,7 @@ echo "Running JMeter KPI suite against ${BASE_URL}"
   -JapiPort="${API_PORT}" \
   -JapiBasePath="${API_BASE_PATH}" \
   -JperfEmail="${PERF_USER_EMAIL:-perf.accountant@sega.local}" \
-  -JperfPassword="${PERF_USER_PASSWORD:-PerfKpi!Pass2026}" \
+  -JperfPassword="${PERF_USER_PASSWORD}" \
   -JperfThreads="${PERF_JMETER_THREADS:-8}" \
   -JperfRampUp="${PERF_JMETER_RAMP_UP:-10}" \
   -JperfLoops="${PERF_JMETER_LOOPS:-25}" \

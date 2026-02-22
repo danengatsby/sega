@@ -174,7 +174,7 @@ npm run invoice-service:dev
 ## Date login inițiale
 
 - Email: `admin@sega.local`
-- Parolă: `admin123!`
+- Parolă: valoarea din `ADMIN_PASSWORD` (`apps/backend/.env`)
 
 (se configurează din `apps/backend/.env`)
 
@@ -443,7 +443,7 @@ Variabile opționale:
 
 - `ANAF_SMOKE_BASE_URL` (default: `http://localhost:4000`)
 - `ANAF_SMOKE_EMAIL` (default: `admin@sega.local`)
-- `ANAF_SMOKE_PASSWORD` (default: `admin123!`)
+- `ANAF_SMOKE_PASSWORD` (default: valoarea din `ADMIN_PASSWORD`)
 - `ANAF_SMOKE_PERIOD` (default: luna UTC curentă, format `YYYY-MM`)
 
 Exemplu:
@@ -484,7 +484,8 @@ npm run perf:jmeter
 
 Variabile utile:
 - `PERF_BASE_URL` (default `http://127.0.0.1:4000`)
-- `PERF_USER_EMAIL` / `PERF_USER_PASSWORD`
+- `PERF_USER_EMAIL` (default `perf.accountant@sega.local`)
+- `PERF_USER_PASSWORD` (obligatoriu)
 - `PERF_TARGET_P95_MS` (default `300`)
 - `PERF_TARGET_P99_MS` (default `700`)
 - `PERF_DASHBOARD_P95_MS` (default `1000`)

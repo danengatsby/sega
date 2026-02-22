@@ -12,7 +12,7 @@ function envOr(name, fallback) {
 
 const baseUrl = envOr('PERF_BASE_URL', 'http://127.0.0.1:4000').replace(/\/+$/, '');
 const email = envOr('PERF_USER_EMAIL', 'perf.accountant@sega.local');
-const password = envOr('PERF_USER_PASSWORD', 'PerfKpi!Pass2026');
+const password = envOr('PERF_USER_PASSWORD', '');
 const vus = Number(envOr('PERF_VUS', '8'));
 const warmupDuration = envOr('PERF_WARMUP', '15s');
 const steadyDuration = envOr('PERF_DURATION', '45s');
@@ -22,6 +22,10 @@ const targetP95Ms = Number(envOr('PERF_TARGET_P95_MS', '300'));
 const targetP99Ms = Number(envOr('PERF_TARGET_P99_MS', '700'));
 const dashboardP95Ms = Number(envOr('PERF_DASHBOARD_P95_MS', '1000'));
 const dashboardP99Ms = Number(envOr('PERF_DASHBOARD_P99_MS', '2000'));
+
+if (!password) {
+  throw new Error('Missing PERF_USER_PASSWORD environment variable.');
+}
 
 const authLoginLatency = new Trend('auth_login_latency', true);
 const invoicesLatency = new Trend('invoices_latency', true);

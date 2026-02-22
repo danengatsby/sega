@@ -2,7 +2,7 @@ import 'dotenv/config';
 
 const apiBase = (process.env.ANAF_SMOKE_BASE_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
 const email = process.env.ANAF_SMOKE_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@sega.local';
-const password = process.env.ANAF_SMOKE_PASSWORD ?? process.env.ADMIN_PASSWORD ?? 'Admin123!ChangeMe';
+const password = process.env.ANAF_SMOKE_PASSWORD ?? process.env.ADMIN_PASSWORD ?? '';
 const bootstrapToken = process.env.ANAF_SMOKE_BOOTSTRAP_TOKEN ?? process.env.BOOTSTRAP_ADMIN_TOKEN ?? '';
 let activeCompanyId: string | null = null;
 const cookieJar = new Map<string, string>();
@@ -115,6 +115,8 @@ interface AuthPayload {
 }
 
 async function loginOrBootstrap(): Promise<void> {
+  assert(password.length > 0, 'Setează ANAF_SMOKE_PASSWORD sau ADMIN_PASSWORD înainte de rulare.');
+
   const fallbackNewPassword = process.env.ANAF_SMOKE_NEW_PASSWORD ?? `${password}#2026`;
   const loginCandidates = [password, fallbackNewPassword].filter((candidate, index, values) => {
     return candidate.length > 0 && values.indexOf(candidate) === index;
