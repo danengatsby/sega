@@ -223,7 +223,7 @@ router.post('/login', async (req, res) => {
     return;
   }
 
-  if (user.mfaEnabled) {
+  if (isMfaRequiredRole(user.role) && user.mfaEnabled) {
     if (!user.mfaSecret) {
       res.status(409).json({
         message: 'Configurația MFA este invalidă. Reconfigurează MFA din profil.',

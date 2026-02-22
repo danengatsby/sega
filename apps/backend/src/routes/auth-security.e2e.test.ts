@@ -112,6 +112,7 @@ before(async () => {
       },
     });
 
+    const chiefSecret = generateSecret();
     const chiefUser = await tx.user.create({
       data: {
         email: `chief-${RUN_ID}@sega.test`,
@@ -119,6 +120,8 @@ before(async () => {
         passwordHash,
         mustChangePassword: false,
         role: Role.CHIEF_ACCOUNTANT,
+        mfaEnabled: true,
+        mfaSecret: chiefSecret,
       },
     });
     await tx.userCompanyMembership.create({
@@ -153,7 +156,7 @@ before(async () => {
 
     return {
       rateUser: { ...rateUser, mfaSecret: null },
-      chiefUser: { ...chiefUser, mfaSecret: null },
+      chiefUser: { ...chiefUser, mfaSecret: chiefSecret },
       adminUser: { ...adminUser, mfaSecret: adminSecret },
     };
   });
@@ -280,7 +283,7 @@ test('login pentru cont cu MFA activ necesită cod valid', async () => {
   assert.ok(cookieHeader.includes('sega_access_token='));
 });
 
-test('CHIEF_ACCOUNTANT fără MFA nu poate accesa rute protejate până la setup+verify', async () => {
+test('CHIEF_ACCOUNTANT are login obișnuit fără MFA obligatoriu', async () => {
   assert.ok(chiefAccountant, 'Fixture CHIEF_ACCOUNTANT lipsă');
 
   const loginResponse = await login(chiefAccountant.email);
@@ -295,58 +298,7 @@ test('CHIEF_ACCOUNTANT fără MFA nu poate accesa rute protejate până la setup
   });
   assert.equal(blockedResponse.status, 403);
   const blockedPayload = (await blockedResponse.json()) as { code?: string };
-  assert.equal(blockedPayload.code, 'MFA_SETUP_REQUIRED');
-
-  const setupResponse = await fetch(`${baseUrl}/api/auth/mfa/setup`, {
-    method: 'POST',
-    headers: {
-      cookie: cookieHeader,
-    },
-  });
-  assert.equal(setupResponse.status, 200);
-  const setupPayload = (await setupResponse.json()) as { secret: string; required: boolean };
-  assert.equal(setupPayload.required, true);
-  assert.ok(setupPayload.secret.length > 0);
-
-  const badVerifyResponse = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
-    method: 'POST',
-    headers: {
-      cookie: cookieHeader,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      code: '000000',
-    }),
-  });
-  assert.equal(badVerifyResponse.status, 401);
-  const badVerifyPayload = (await badVerifyResponse.json()) as { code?: string };
-  assert.equal(badVerifyPayload.code, 'MFA_INVALID_CODE');
-
-  const validCode = generateSync({ secret: setupPayload.secret });
-  const verifyResponse = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
-    method: 'POST',
-    headers: {
-      cookie: cookieHeader,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      code: validCode,
-    }),
-  });
-  assert.equal(verifyResponse.status, 200);
-  const verifyPayload = (await verifyResponse.json()) as { user: { mfaEnabled?: boolean } };
-  assert.equal(verifyPayload.user.mfaEnabled, true);
-  cookieHeader = extractCookieHeader(verifyResponse);
-  assert.ok(cookieHeader.includes('sega_access_token='));
-
-  const stillBlockedResponse = await fetch(`${baseUrl}/api/accounts`, {
-    headers: {
-      cookie: cookieHeader,
-    },
-  });
-  assert.equal(stillBlockedResponse.status, 403);
-  const stillBlockedPayload = (await stillBlockedResponse.json()) as { code?: string };
-  assert.equal(stillBlockedPayload.code, 'COMPANY_SELECTION_REQUIRED');
+  assert.equal(blockedPayload.code, 'COMPANY_SELECTION_REQUIRED');
 
   assert.ok(companyId, 'Compania fixture lipsește pentru selectarea contextului');
   const switchCompanyResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
