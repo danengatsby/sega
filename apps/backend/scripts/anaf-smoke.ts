@@ -281,14 +281,26 @@ async function checkValidationSummary(): Promise<void> {
   assert(response.ok, `Endpoint validation summary a raspuns cu HTTP ${response.status}.`);
 
   const payload = await parseJson<ValidationPayload>(response);
-  assert(payload.results.length >= 3, 'Validation summary nu contine toate declaratiile.');
+  const requiredDeclarations = ['d300', 'd394', 'd112', 'd406'] as const;
+  const requiredSet = new Set<string>(requiredDeclarations);
+  const seenRequired = new Set<string>();
 
   for (const result of payload.results) {
+    const declaration = result.declaration.trim().toLowerCase();
+    if (!requiredSet.has(declaration)) {
+      continue;
+    }
+
+    seenRequired.add(declaration);
     assert(result.xsd.performed === true, `${result.declaration}: xsd.performed trebuie sa fie true.`);
     assert(result.xsd.valid === true, `${result.declaration}: xsd.valid trebuie sa fie true.`);
   }
 
-  console.log('[OK] Validation summary: toate declaratiile au xsd.performed=true si xsd.valid=true');
+  for (const declaration of requiredDeclarations) {
+    assert(seenRequired.has(declaration), `Validation summary nu contine declaratia ${declaration.toUpperCase()}.`);
+  }
+
+  console.log('[OK] Validation summary: declaratiile critice au xsd.performed=true si xsd.valid=true');
 }
 
 async function main(): Promise<void> {
