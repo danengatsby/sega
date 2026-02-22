@@ -1,10 +1,12 @@
 import 'dotenv/config';
+import { authenticator } from 'otplib';
 
 const apiBase = (process.env.ANAF_SMOKE_BASE_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
 const email = process.env.ANAF_SMOKE_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@sega.local';
 const password = process.env.ANAF_SMOKE_PASSWORD ?? process.env.ADMIN_PASSWORD ?? '';
 const bootstrapToken = process.env.ANAF_SMOKE_BOOTSTRAP_TOKEN ?? process.env.BOOTSTRAP_ADMIN_TOKEN ?? '';
 let activeCompanyId: string | null = null;
+let mfaBootstrapped = false;
 const cookieJar = new Map<string, string>();
 
 function defaultPeriod(): string {
@@ -111,7 +113,12 @@ interface AuthPayload {
   user?: {
     mustChangePassword?: boolean;
     companyId?: string;
+    mfaEnabled?: boolean;
   };
+}
+
+interface MfaSetupPayload {
+  secret?: string;
 }
 
 async function loginOrBootstrap(): Promise<void> {
@@ -207,10 +214,44 @@ async function loginOrBootstrap(): Promise<void> {
   }
 }
 
-async function checkDeclaration(declaration: 'd300' | 'd394' | 'd112' | 'd406'): Promise<void> {
-  const response = await request(`/api/reports/export/anaf/${declaration}.xml?period=${period}&validate=true`);
+async function ensureMfaEnrollment(): Promise<void> {
+  if (mfaBootstrapped) {
+    return;
+  }
 
-  const body = await response.text();
+  const setupResponse = await postJson('/api/auth/mfa/setup', {});
+  if (!setupResponse.ok) {
+    const body = await setupResponse.text();
+    throw new Error(`mfa/setup a esuat. HTTP ${setupResponse.status}. Body: ${body.slice(0, 400)}`);
+  }
+
+  const setupPayload = await parseJson<MfaSetupPayload>(setupResponse);
+  assert(typeof setupPayload.secret === 'string' && setupPayload.secret.length > 0, 'mfa/setup nu a returnat secret.');
+  const code = authenticator.generate(setupPayload.secret);
+
+  const verifyResponse = await postJson('/api/auth/mfa/verify', { code });
+  if (!verifyResponse.ok) {
+    const body = await verifyResponse.text();
+    throw new Error(`mfa/verify a esuat. HTTP ${verifyResponse.status}. Body: ${body.slice(0, 400)}`);
+  }
+
+  const verifyPayload = await parseJson<AuthPayload>(verifyResponse);
+  updateCompanyContext(verifyPayload);
+  mfaBootstrapped = true;
+  console.log('[INFO] MFA setup+verify efectuat automat pentru smoke.');
+}
+
+async function checkDeclaration(declaration: 'd300' | 'd394' | 'd112' | 'd406'): Promise<void> {
+  const path = `/api/reports/export/anaf/${declaration}.xml?period=${period}&validate=true`;
+  let response = await request(path);
+  let body = await response.text();
+
+  if (response.status === 403 && body.includes('"code":"MFA_SETUP_REQUIRED"')) {
+    await ensureMfaEnrollment();
+    response = await request(path);
+    body = await response.text();
+  }
+
   assert(response.ok, `${declaration.toUpperCase()} HTTP ${response.status}. Body: ${body.slice(0, 400)}`);
 
   const performed = response.headers.get('x-anaf-xsd-performed');
