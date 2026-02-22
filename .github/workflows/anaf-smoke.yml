@@ -68,6 +68,11 @@ jobs:
           npm run prisma:generate -w backend
           npm run prisma:push -w backend
 
+      - name: Seed baseline data
+        env:
+          ADMIN_PASSWORD: ${{ env.CI_ADMIN_SECRET }}
+        run: npm run seed -w backend
+
       - name: Build backend
         run: npm run build -w backend
 
