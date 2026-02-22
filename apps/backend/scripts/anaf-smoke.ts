@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { authenticator } from 'otplib';
+import { generateSync } from 'otplib';
 
 const apiBase = (process.env.ANAF_SMOKE_BASE_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
 const email = process.env.ANAF_SMOKE_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@sega.local';
@@ -227,7 +227,7 @@ async function ensureMfaEnrollment(): Promise<void> {
 
   const setupPayload = await parseJson<MfaSetupPayload>(setupResponse);
   assert(typeof setupPayload.secret === 'string' && setupPayload.secret.length > 0, 'mfa/setup nu a returnat secret.');
-  const code = authenticator.generate(setupPayload.secret);
+  const code = generateSync({ secret: setupPayload.secret });
 
   const verifyResponse = await postJson('/api/auth/mfa/verify', { code });
   if (!verifyResponse.ok) {
