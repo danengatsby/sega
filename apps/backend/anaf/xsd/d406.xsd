@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema
+  xmlns:xs="http://www.w3.org/2001/XMLSchema"
+  xmlns="urn:OECD:StandardAuditFile-Tax:RO"
+  targetNamespace="urn:OECD:StandardAuditFile-Tax:RO"
+  elementFormDefault="qualified"
+  attributeFormDefault="unqualified"
+>
+  <xs:element name="AuditFile" type="AuditFileType"/>
+
+  <xs:complexType name="AuditFileType">
+    <xs:sequence>
+      <xs:element name="Header" type="HeaderType"/>
+      <xs:element name="MasterFiles" type="MasterFilesType"/>
+      <xs:element name="GeneralLedgerEntries" type="GeneralLedgerEntriesType"/>
+      <xs:element name="SourceDocuments" type="SourceDocumentsType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="HeaderType">
+    <xs:sequence>
+      <xs:element name="AuditFileVersion" type="xs:string"/>
+      <xs:element name="AuditFileCountry" type="xs:string"/>
+      <xs:element name="CompanyID" type="xs:string"/>
+      <xs:element name="CompanyName" type="xs:string"/>
+      <xs:element name="TaxRegistrationNumber" type="xs:string"/>
+      <xs:element name="StartDate" type="xs:date"/>
+      <xs:element name="EndDate" type="xs:date"/>
+      <xs:element name="DateCreated" type="xs:date"/>
+      <xs:element name="TaxAccountingBasis" type="xs:string"/>
+      <xs:element name="CurrencyCode" type="xs:string"/>
+      <xs:element name="ProductCompanyTaxID" type="xs:string"/>
+      <xs:element name="ProductID" type="xs:string"/>
+      <xs:element name="ProductVersion" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="MasterFilesType">
+    <xs:sequence>
+      <xs:element name="GeneralLedgerAccounts" type="GeneralLedgerAccountsType"/>
+      <xs:element name="Customers" type="CustomersType"/>
+      <xs:element name="Suppliers" type="SuppliersType"/>
+      <xs:element name="Products" type="ProductsType"/>
+      <xs:element name="Assets" type="AssetsType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="GeneralLedgerAccountsType">
+    <xs:sequence>
+      <xs:element name="Account" type="AccountType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="AccountType">
+    <xs:sequence>
+      <xs:element name="AccountID" type="xs:string"/>
+      <xs:element name="AccountDescription" type="xs:string"/>
+      <xs:element name="AccountType" type="SaftAccountTypeCodeType"/>
+      <xs:element name="AccountCreationDate" type="xs:date"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="CustomersType">
+    <xs:sequence>
+      <xs:element name="Customer" type="CustomerType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="CustomerType">
+    <xs:sequence>
+      <xs:element name="CustomerID" type="xs:string"/>
+      <xs:element name="AccountID" type="xs:string" minOccurs="0"/>
+      <xs:element name="CustomerTaxID" type="xs:string" minOccurs="0"/>
+      <xs:element name="CompanyName" type="xs:string"/>
+      <xs:element name="BillingAddress" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SuppliersType">
+    <xs:sequence>
+      <xs:element name="Supplier" type="SupplierType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SupplierType">
+    <xs:sequence>
+      <xs:element name="SupplierID" type="xs:string"/>
+      <xs:element name="AccountID" type="xs:string" minOccurs="0"/>
+      <xs:element name="SupplierTaxID" type="xs:string" minOccurs="0"/>
+      <xs:element name="CompanyName" type="xs:string"/>
+      <xs:element name="BillingAddress" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ProductsType">
+    <xs:sequence>
+      <xs:element name="Product" type="ProductType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="ProductType">
+    <xs:sequence>
+      <xs:element name="ProductType" type="xs:string"/>
+      <xs:element name="ProductCode" type="xs:string"/>
+      <xs:element name="ProductDescription" type="xs:string"/>
+      <xs:element name="ProductNumberCode" type="xs:string" minOccurs="0"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="AssetsType">
+    <xs:sequence>
+      <xs:element name="Asset" type="AssetType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="AssetType">
+    <xs:sequence>
+      <xs:element name="AssetID" type="xs:string"/>
+      <xs:element name="AssetDescription" type="xs:string"/>
+      <xs:element name="AcquisitionDate" type="xs:date"/>
+      <xs:element name="AssetType" type="xs:string"/>
+      <xs:element name="OriginalAcquisitionValue" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="GeneralLedgerEntriesType">
+    <xs:sequence>
+      <xs:element name="NumberOfEntries" type="xs:nonNegativeInteger"/>
+      <xs:element name="TotalDebit" type="xs:decimal"/>
+      <xs:element name="TotalCredit" type="xs:decimal"/>
+      <xs:element name="Journal" type="JournalType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="JournalType">
+    <xs:sequence>
+      <xs:element name="JournalID" type="xs:string"/>
+      <xs:element name="Description" type="xs:string" minOccurs="0"/>
+      <xs:element name="Transaction" type="TransactionType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="TransactionType">
+    <xs:sequence>
+      <xs:element name="TransactionID" type="xs:string"/>
+      <xs:element name="Period" type="xs:nonNegativeInteger"/>
+      <xs:element name="TransactionDate" type="xs:date"/>
+      <xs:element name="SourceID" type="xs:string" minOccurs="0"/>
+      <xs:element name="Description" type="xs:string" minOccurs="0"/>
+      <xs:element name="DocArchivalNumber" type="xs:string" minOccurs="0"/>
+      <xs:element name="Line" type="LineType" minOccurs="1" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="LineType">
+    <xs:sequence>
+      <xs:element name="RecordID" type="xs:string"/>
+      <xs:element name="AccountID" type="xs:string"/>
+      <xs:element name="Description" type="xs:string" minOccurs="0"/>
+      <xs:element name="DebitAmount" type="xs:decimal"/>
+      <xs:element name="CreditAmount" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="SourceDocumentsType">
+    <xs:sequence>
+      <xs:element name="SalesInvoices" type="InvoicesBlockType"/>
+      <xs:element name="PurchaseInvoices" type="InvoicesBlockType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="InvoicesBlockType">
+    <xs:sequence>
+      <xs:element name="NumberOfEntries" type="xs:nonNegativeInteger"/>
+      <xs:element name="TotalDebit" type="xs:decimal"/>
+      <xs:element name="TotalCredit" type="xs:decimal"/>
+      <xs:element name="Invoice" type="InvoiceType" minOccurs="0" maxOccurs="unbounded"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="InvoiceType">
+    <xs:sequence>
+      <xs:element name="InvoiceNo" type="xs:string"/>
+      <xs:element name="InvoiceDate" type="xs:date"/>
+      <xs:element name="InvoiceType" type="SaftInvoiceTypeCodeType"/>
+      <xs:element name="SourceID" type="xs:string" minOccurs="0"/>
+      <xs:element name="SystemEntryDate" type="xs:date"/>
+      <xs:element name="CustomerID" type="xs:string" minOccurs="0"/>
+      <xs:element name="SupplierID" type="xs:string" minOccurs="0"/>
+      <xs:element name="DocumentTotals" type="DocumentTotalsType"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="DocumentTotalsType">
+    <xs:sequence>
+      <xs:element name="TaxPayable" type="xs:decimal"/>
+      <xs:element name="NetTotal" type="xs:decimal"/>
+      <xs:element name="GrossTotal" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:simpleType name="SaftAccountTypeCodeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="ASSET"/>
+      <xs:enumeration value="LIABILITY"/>
+      <xs:enumeration value="EQUITY"/>
+      <xs:enumeration value="REVENUE"/>
+      <xs:enumeration value="EXPENSE"/>
+    </xs:restriction>
+  </xs:simpleType>
+
+  <xs:simpleType name="SaftInvoiceTypeCodeType">
+    <xs:restriction base="xs:string">
+      <xs:enumeration value="FT"/>
+      <xs:enumeration value="PF"/>
+      <xs:enumeration value="CN"/>
+      <xs:enumeration value="PI"/>
+    </xs:restriction>
+  </xs:simpleType>
+</xs:schema>

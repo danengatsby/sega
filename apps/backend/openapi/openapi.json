@@ -1,0 +1,5405 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SEGA Accounting API",
+    "description": "Specificație OpenAPI 3.0 generată automat din routerele backend. Include endpoint-urile critice pentru audit de conformitate API-First.",
+    "version": "3.0.0"
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Server relativ (local/staging/prod prin host-ul curent)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "Endpoint-uri Accounts."
+    },
+    {
+      "name": "Assets",
+      "description": "Endpoint-uri Assets."
+    },
+    {
+      "name": "Audit",
+      "description": "Endpoint-uri Audit."
+    },
+    {
+      "name": "Auth",
+      "description": "Endpoint-uri Auth."
+    },
+    {
+      "name": "Bank Reconciliation",
+      "description": "Endpoint-uri Bank Reconciliation."
+    },
+    {
+      "name": "Dashboard Snapshots",
+      "description": "Endpoint-uri Dashboard Snapshots."
+    },
+    {
+      "name": "Docs",
+      "description": "Endpoint-uri Docs."
+    },
+    {
+      "name": "Employees",
+      "description": "Endpoint-uri Employees."
+    },
+    {
+      "name": "Export Jobs",
+      "description": "Endpoint-uri Export Jobs."
+    },
+    {
+      "name": "Health",
+      "description": "Endpoint-uri Health."
+    },
+    {
+      "name": "Invoices",
+      "description": "Endpoint-uri Invoices."
+    },
+    {
+      "name": "Journal",
+      "description": "Endpoint-uri Journal."
+    },
+    {
+      "name": "Open Banking",
+      "description": "Endpoint-uri Open Banking."
+    },
+    {
+      "name": "Partners",
+      "description": "Endpoint-uri Partners."
+    },
+    {
+      "name": "Payroll",
+      "description": "Endpoint-uri Payroll."
+    },
+    {
+      "name": "Periods",
+      "description": "Endpoint-uri Periods."
+    },
+    {
+      "name": "Purchases",
+      "description": "Endpoint-uri Purchases."
+    },
+    {
+      "name": "Reports",
+      "description": "Endpoint-uri Reports."
+    },
+    {
+      "name": "Revisal",
+      "description": "Endpoint-uri Revisal."
+    },
+    {
+      "name": "Stocks",
+      "description": "Endpoint-uri Stocks."
+    }
+  ],
+  "paths": {
+    "/api/accounts": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Read accounts",
+        "operationId": "getApiAccounts",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/accounts.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/accounts",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Create/Execute accounts",
+        "operationId": "postApiAccounts",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/accounts.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/accounts",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/accounts/{id}": {
+      "patch": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Update accounts",
+        "operationId": "patchApiAccountsId",
+        "description": "Contract OpenAPI auto-generat pentru PATCH /api/accounts/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/accounts",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Read assets",
+        "operationId": "getApiAssets",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/assets.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/assets",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Create/Execute assets",
+        "operationId": "postApiAssets",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/assets.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/assets",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/assets/run-depreciation": {
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "summary": "Create/Execute assets run-depreciation",
+        "operationId": "postApiAssetsRunDepreciation",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/assets/run-depreciation.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/assets",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/audit-log": {
+      "get": {
+        "tags": [
+          "Audit"
+        ],
+        "summary": "Read audit-log",
+        "operationId": "getApiAuditLog",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/audit-log.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/audit",
+        "x-critical": true
+      }
+    },
+    "/api/auth/bootstrap-admin": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth bootstrap-admin",
+        "operationId": "postApiAuthBootstrapAdmin",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/bootstrap-admin.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/change-password": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth change-password",
+        "operationId": "postApiAuthChangePassword",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/change-password.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth login",
+        "operationId": "postApiAuthLogin",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/login.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth logout",
+        "operationId": "postApiAuthLogout",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/logout.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Read auth me",
+        "operationId": "getApiAuthMe",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/auth/me.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true
+      }
+    },
+    "/api/auth/mfa/disable": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth mfa disable",
+        "operationId": "postApiAuthMfaDisable",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/mfa/disable.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/setup": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth mfa setup",
+        "operationId": "postApiAuthMfaSetup",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/mfa/setup.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/mfa/verify": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth mfa verify",
+        "operationId": "postApiAuthMfaVerify",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/mfa/verify.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth refresh",
+        "operationId": "postApiAuthRefresh",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/refresh.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/switch-company": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Create/Execute auth switch-company",
+        "operationId": "postApiAuthSwitchCompany",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/auth/switch-company.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/auth",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank-reconciliation/lines/{id}/ignore": {
+      "post": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Create/Execute bank-reconciliation lines ignore",
+        "operationId": "postApiBankReconciliationLinesIdIgnore",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/bank-reconciliation/lines/{id}/ignore.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank-reconciliation/lines/{id}/reconcile": {
+      "post": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Create/Execute bank-reconciliation lines reconcile",
+        "operationId": "postApiBankReconciliationLinesIdReconcile",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/bank-reconciliation/lines/{id}/reconcile.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank-reconciliation/lines/{id}/suggest": {
+      "post": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Create/Execute bank-reconciliation lines suggest",
+        "operationId": "postApiBankReconciliationLinesIdSuggest",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/bank-reconciliation/lines/{id}/suggest.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank-reconciliation/statements": {
+      "get": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Read bank-reconciliation statements",
+        "operationId": "getApiBankReconciliationStatements",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/bank-reconciliation/statements.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": true
+      }
+    },
+    "/api/bank-reconciliation/statements/{id}/lines": {
+      "get": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Read bank-reconciliation statements lines",
+        "operationId": "getApiBankReconciliationStatementsIdLines",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/bank-reconciliation/statements/{id}/lines.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": false
+      }
+    },
+    "/api/bank-reconciliation/statements/import": {
+      "post": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Create/Execute bank-reconciliation statements import",
+        "operationId": "postApiBankReconciliationStatementsImport",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/bank-reconciliation/statements/import.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/bank-reconciliation/statements/import-file": {
+      "post": {
+        "tags": [
+          "Bank Reconciliation"
+        ],
+        "summary": "Create/Execute bank-reconciliation statements import-file",
+        "operationId": "postApiBankReconciliationStatementsImportFile",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/bank-reconciliation/statements/import-file.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/bank-reconciliation",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard-snapshots": {
+      "get": {
+        "tags": [
+          "Dashboard Snapshots"
+        ],
+        "summary": "Read dashboard-snapshots",
+        "operationId": "getApiDashboardSnapshots",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/dashboard-snapshots.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/dashboard-snapshots",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Dashboard Snapshots"
+        ],
+        "summary": "Create/Execute dashboard-snapshots",
+        "operationId": "postApiDashboardSnapshots",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/dashboard-snapshots.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/dashboard-snapshots",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dashboard-snapshots/{id}": {
+      "get": {
+        "tags": [
+          "Dashboard Snapshots"
+        ],
+        "summary": "Read dashboard-snapshots",
+        "operationId": "getApiDashboardSnapshotsId",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/dashboard-snapshots/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/dashboard-snapshots",
+        "x-critical": true
+      }
+    },
+    "/api/dashboard-snapshots/latest": {
+      "get": {
+        "tags": [
+          "Dashboard Snapshots"
+        ],
+        "summary": "Read dashboard-snapshots latest",
+        "operationId": "getApiDashboardSnapshotsLatest",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/dashboard-snapshots/latest.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/dashboard-snapshots",
+        "x-critical": true
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "Read docs",
+        "operationId": "getApiDocs",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/docs.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "app",
+        "x-critical": false
+      }
+    },
+    "/api/employees": {
+      "get": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Read employees",
+        "operationId": "getApiEmployees",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/employees.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/employees",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Create/Execute employees",
+        "operationId": "postApiEmployees",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/employees.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/employees",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/employees/{id}": {
+      "patch": {
+        "tags": [
+          "Employees"
+        ],
+        "summary": "Update employees",
+        "operationId": "patchApiEmployeesId",
+        "description": "Contract OpenAPI auto-generat pentru PATCH /api/employees/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/employees",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/export-jobs": {
+      "get": {
+        "tags": [
+          "Export Jobs"
+        ],
+        "summary": "Read export-jobs",
+        "operationId": "getApiExportJobs",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/export-jobs.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/export-jobs",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Export Jobs"
+        ],
+        "summary": "Create/Execute export-jobs",
+        "operationId": "postApiExportJobs",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/export-jobs.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/export-jobs",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/export-jobs/{id}": {
+      "get": {
+        "tags": [
+          "Export Jobs"
+        ],
+        "summary": "Read export-jobs",
+        "operationId": "getApiExportJobsId",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/export-jobs/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/export-jobs",
+        "x-critical": true
+      }
+    },
+    "/api/export-jobs/{id}/download": {
+      "get": {
+        "tags": [
+          "Export Jobs"
+        ],
+        "summary": "Read export-jobs download",
+        "operationId": "getApiExportJobsIdDownload",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/export-jobs/{id}/download.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/export-jobs",
+        "x-critical": true
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Read health",
+        "operationId": "getApiHealth",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/health.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "app",
+        "x-critical": false
+      }
+    },
+    "/api/invoices": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Read invoices",
+        "operationId": "getApiInvoices",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/invoices.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Create/Execute invoices",
+        "operationId": "postApiInvoices",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/invoices.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/efactura/poll": {
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Create/Execute invoices efactura poll",
+        "operationId": "postApiInvoicesIdEfacturaPoll",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/invoices/{id}/efactura/poll.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/efactura/send": {
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Create/Execute invoices efactura send",
+        "operationId": "postApiInvoicesIdEfacturaSend",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/invoices/{id}/efactura/send.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/invoices/{id}/efactura/signed-xml": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Read invoices efactura signed-xml",
+        "operationId": "getApiInvoicesIdEfacturaSignedXml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/invoices/{id}/efactura/signed-xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true
+      }
+    },
+    "/api/invoices/{id}/pay": {
+      "post": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Create/Execute invoices pay",
+        "operationId": "postApiInvoicesIdPay",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/invoices/{id}/pay.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/journal-entries": {
+      "get": {
+        "tags": [
+          "Journal"
+        ],
+        "summary": "Read journal-entries",
+        "operationId": "getApiJournalEntries",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/journal-entries.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/journal",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Journal"
+        ],
+        "summary": "Create/Execute journal-entries",
+        "operationId": "postApiJournalEntries",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/journal-entries.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/journal",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/journal-entries/{id}/storno": {
+      "post": {
+        "tags": [
+          "Journal"
+        ],
+        "summary": "Create/Execute journal-entries storno",
+        "operationId": "postApiJournalEntriesIdStorno",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/journal-entries/{id}/storno.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/journal",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/journal-entries/{id}/validate": {
+      "post": {
+        "tags": [
+          "Journal"
+        ],
+        "summary": "Create/Execute journal-entries validate",
+        "operationId": "postApiJournalEntriesIdValidate",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/journal-entries/{id}/validate.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/journal",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-banking/connections": {
+      "get": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Read open-banking connections",
+        "operationId": "getApiOpenBankingConnections",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/open-banking/connections.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Create/Execute open-banking connections",
+        "operationId": "postApiOpenBankingConnections",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/open-banking/connections.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-banking/connections/{id}/oauth2/token": {
+      "post": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Create/Execute open-banking connections oauth2 token",
+        "operationId": "postApiOpenBankingConnectionsIdOauth2Token",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/open-banking/connections/{id}/oauth2/token.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-banking/connections/{id}/status": {
+      "patch": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Update open-banking connections status",
+        "operationId": "patchApiOpenBankingConnectionsIdStatus",
+        "description": "Contract OpenAPI auto-generat pentru PATCH /api/open-banking/connections/{id}/status.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-banking/connections/{id}/sync": {
+      "post": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Create/Execute open-banking connections sync",
+        "operationId": "postApiOpenBankingConnectionsIdSync",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/open-banking/connections/{id}/sync.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/open-banking/connections/{id}/sync-runs": {
+      "get": {
+        "tags": [
+          "Open Banking"
+        ],
+        "summary": "Read open-banking connections sync-runs",
+        "operationId": "getApiOpenBankingConnectionsIdSyncRuns",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/open-banking/connections/{id}/sync-runs.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/open-banking",
+        "x-critical": true
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "tags": [
+          "Docs"
+        ],
+        "summary": "Read openapi.json",
+        "operationId": "getApiOpenapiJson",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/openapi.json.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "app",
+        "x-critical": false
+      }
+    },
+    "/api/partners": {
+      "get": {
+        "tags": [
+          "Partners"
+        ],
+        "summary": "Read partners",
+        "operationId": "getApiPartners",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/partners.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/partners",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Partners"
+        ],
+        "summary": "Create/Execute partners",
+        "operationId": "postApiPartners",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/partners.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/partners",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/payroll/runs": {
+      "get": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Read payroll runs",
+        "operationId": "getApiPayrollRuns",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/payroll/runs.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/payroll",
+        "x-critical": true
+      }
+    },
+    "/api/payroll/runs/{id}": {
+      "get": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Read payroll runs",
+        "operationId": "getApiPayrollRunsId",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/payroll/runs/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/payroll",
+        "x-critical": true
+      }
+    },
+    "/api/payroll/runs/generate": {
+      "post": {
+        "tags": [
+          "Payroll"
+        ],
+        "summary": "Create/Execute payroll runs generate",
+        "operationId": "postApiPayrollRunsGenerate",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/payroll/runs/generate.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/payroll",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/periods": {
+      "get": {
+        "tags": [
+          "Periods"
+        ],
+        "summary": "Read periods",
+        "operationId": "getApiPeriods",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/periods.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/periods",
+        "x-critical": false
+      }
+    },
+    "/api/periods/{period}/close": {
+      "post": {
+        "tags": [
+          "Periods"
+        ],
+        "summary": "Create/Execute periods close",
+        "operationId": "postApiPeriodsPeriodClose",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/periods/{period}/close.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/periods",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/periods/{period}/reopen": {
+      "post": {
+        "tags": [
+          "Periods"
+        ],
+        "summary": "Create/Execute periods reopen",
+        "operationId": "postApiPeriodsPeriodReopen",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/periods/{period}/reopen.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/periods",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/aging": {
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Read purchases aging",
+        "operationId": "getApiPurchasesAging",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/purchases/aging.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true
+      }
+    },
+    "/api/purchases/approvers": {
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Read purchases approvers",
+        "operationId": "getApiPurchasesApprovers",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/purchases/approvers.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": false
+      }
+    },
+    "/api/purchases/dashboard": {
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Read purchases dashboard",
+        "operationId": "getApiPurchasesDashboard",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/purchases/dashboard.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true
+      }
+    },
+    "/api/purchases/delegations": {
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Read purchases delegations",
+        "operationId": "getApiPurchasesDelegations",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/purchases/delegations.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": false
+      },
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases delegations",
+        "operationId": "postApiPurchasesDelegations",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/delegations.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/invoices": {
+      "get": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Read purchases invoices",
+        "operationId": "getApiPurchasesInvoices",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/purchases/invoices.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases invoices",
+        "operationId": "postApiPurchasesInvoices",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/invoices.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/invoices/{id}/approve": {
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases invoices approve",
+        "operationId": "postApiPurchasesInvoicesIdApprove",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/invoices/{id}/approve.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/invoices/{id}/approve/mobile": {
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases invoices approve mobile",
+        "operationId": "postApiPurchasesInvoicesIdApproveMobile",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/invoices/{id}/approve/mobile.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": false,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/invoices/{id}/pay": {
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases invoices pay",
+        "operationId": "postApiPurchasesInvoicesIdPay",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/invoices/{id}/pay.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/purchases/invoices/{id}/reject": {
+      "post": {
+        "tags": [
+          "Purchases"
+        ],
+        "summary": "Create/Execute purchases invoices reject",
+        "operationId": "postApiPurchasesInvoicesIdReject",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/purchases/invoices/{id}/reject.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/purchases",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/reports/aging-receivables": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports aging-receivables",
+        "operationId": "getApiReportsAgingReceivables",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/aging-receivables.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/balance-sheet": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports balance-sheet",
+        "operationId": "getApiReportsBalanceSheet",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/balance-sheet.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/dashboard-bi": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports dashboard-bi",
+        "operationId": "getApiReportsDashboardBi",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/dashboard-bi.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/anaf/d100.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d100.xml",
+        "operationId": "getApiReportsExportAnafD100Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d100.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d101.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d101.xml",
+        "operationId": "getApiReportsExportAnafD101Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d101.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d112.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d112.xml",
+        "operationId": "getApiReportsExportAnafD112Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d112.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/anaf/d205.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d205.xml",
+        "operationId": "getApiReportsExportAnafD205Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d205.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d300.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d300.xml",
+        "operationId": "getApiReportsExportAnafD300Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d300.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/anaf/d392.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d392.xml",
+        "operationId": "getApiReportsExportAnafD392Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d392.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d393.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d393.xml",
+        "operationId": "getApiReportsExportAnafD393Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d393.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d394.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d394.xml",
+        "operationId": "getApiReportsExportAnafD394Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d394.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/anaf/d406-conformity": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d406-conformity",
+        "operationId": "getApiReportsExportAnafD406Conformity",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d406-conformity.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": false
+      }
+    },
+    "/api/reports/export/anaf/d406.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf d406.xml",
+        "operationId": "getApiReportsExportAnafD406Xml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/d406.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/anaf/validation": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export anaf validation",
+        "operationId": "getApiReportsExportAnafValidation",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/anaf/validation.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/financial.excel": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export financial.excel",
+        "operationId": "getApiReportsExportFinancialExcel",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/financial.excel.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/financial.pdf": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export financial.pdf",
+        "operationId": "getApiReportsExportFinancialPdf",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/financial.pdf.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/financial.xbrl": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export financial.xbrl",
+        "operationId": "getApiReportsExportFinancialXbrl",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/financial.xbrl.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/export/financial.xml": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports export financial.xml",
+        "operationId": "getApiReportsExportFinancialXml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/export/financial.xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/financial-statements": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports financial-statements",
+        "operationId": "getApiReportsFinancialStatements",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/financial-statements.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/pnl": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports pnl",
+        "operationId": "getApiReportsPnl",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/pnl.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/reports/trial-balance": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "summary": "Read reports trial-balance",
+        "operationId": "getApiReportsTrialBalance",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/reports/trial-balance.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/reports",
+        "x-critical": true
+      }
+    },
+    "/api/revisal/exports": {
+      "get": {
+        "tags": [
+          "Revisal"
+        ],
+        "summary": "Read revisal exports",
+        "operationId": "getApiRevisalExports",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/revisal/exports.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/revisal",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Revisal"
+        ],
+        "summary": "Create/Execute revisal exports",
+        "operationId": "postApiRevisalExports",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/revisal/exports.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/revisal",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/revisal/exports/{id}": {
+      "get": {
+        "tags": [
+          "Revisal"
+        ],
+        "summary": "Read revisal exports",
+        "operationId": "getApiRevisalExportsId",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/revisal/exports/{id}.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/revisal",
+        "x-critical": true
+      }
+    },
+    "/api/revisal/exports/{id}/deliver": {
+      "post": {
+        "tags": [
+          "Revisal"
+        ],
+        "summary": "Create/Execute revisal exports deliver",
+        "operationId": "postApiRevisalExportsIdDeliver",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/revisal/exports/{id}/deliver.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/revisal",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/revisal/exports/{id}/xml": {
+      "get": {
+        "tags": [
+          "Revisal"
+        ],
+        "summary": "Read revisal exports xml",
+        "operationId": "getApiRevisalExportsIdXml",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/revisal/exports/{id}/xml.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/revisal",
+        "x-critical": true
+      }
+    },
+    "/api/stocks/consumptions": {
+      "post": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Create/Execute stocks consumptions",
+        "operationId": "postApiStocksConsumptions",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/stocks/consumptions.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stocks/inventory": {
+      "post": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Create/Execute stocks inventory",
+        "operationId": "postApiStocksInventory",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/stocks/inventory.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stocks/items": {
+      "get": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Read stocks items",
+        "operationId": "getApiStocksItems",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/stocks/items.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true
+      },
+      "post": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Create/Execute stocks items",
+        "operationId": "postApiStocksItems",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/stocks/items.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/stocks/movements": {
+      "get": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Read stocks movements",
+        "operationId": "getApiStocksMovements",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/stocks/movements.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true
+      }
+    },
+    "/api/stocks/nir": {
+      "post": {
+        "tags": [
+          "Stocks"
+        ],
+        "summary": "Create/Execute stocks nir",
+        "operationId": "postApiStocksNir",
+        "description": "Contract OpenAPI auto-generat pentru POST /api/stocks/nir.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/stocks",
+        "x-critical": true,
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        }
+      }
+    },
+    "/metrics": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Read metrics",
+        "operationId": "getMetrics",
+        "description": "Contract OpenAPI auto-generat pentru GET /metrics.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "app",
+        "x-critical": false
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "sega_access_token",
+        "description": "Access token JWT transportat în cookie HttpOnly."
+      },
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Alternativ, access token JWT transmis în Authorization: Bearer."
+      }
+    },
+    "schemas": {
+      "GenericObject": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  }
+}

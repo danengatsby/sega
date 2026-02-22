@@ -1,0 +1,17 @@
+node_modules
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+.env
+.env.*
+!.env.example
+
+apps/backend/dist
+apps/frontend/dist
+apps/backend/perf/results
+
+.DS_Store
+
+jmeter.log

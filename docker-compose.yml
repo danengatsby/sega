@@ -1,0 +1,151 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: sega-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: sega_accounting
+      POSTGRES_USER: sega
+      POSTGRES_PASSWORD: sega
+    ports:
+      - '5434:5432'
+    volumes:
+      - sega_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sega -d sega_accounting']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    container_name: sega-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    command: ['redis-server', '--save', '60', '1', '--loglevel', 'warning']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:RELEASE.2025-02-07T23-21-09Z
+    container_name: sega-minio
+    restart: unless-stopped
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: segaadmin
+      MINIO_ROOT_PASSWORD: segasecret123
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - sega_minio_data:/data
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-02-08T19-14-21Z
+    container_name: sega-minio-init
+    restart: 'no'
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 5 &&
+      mc alias set sega http://minio:9000 segaadmin segasecret123 &&
+      mc mb --ignore-existing sega/invoices &&
+      mc mb --ignore-existing sega/efactura &&
+      mc mb --ignore-existing sega/statements &&
+      mc mb --ignore-existing sega/reports &&
+      mc mb --ignore-existing sega/backups
+      "
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sega-nginx
+    restart: unless-stopped
+    profiles: ['app']
+    depends_on:
+      - db
+      - redis
+      - minio
+    ports:
+      - '8088:80'
+    volumes:
+      - ./infra/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.68.0
+    container_name: sega-redis-exporter
+    restart: unless-stopped
+    profiles: ['observability']
+    depends_on:
+      - redis
+    environment:
+      REDIS_ADDR: redis://redis:6379
+    ports:
+      - '9121:9121'
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: sega-prometheus
+    restart: unless-stopped
+    profiles: ['observability']
+    depends_on:
+      - redis-exporter
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=15d'
+    ports:
+      - '9090:9090'
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.16.1
+    container_name: sega-elasticsearch
+    restart: unless-stopped
+    profiles: ['logging']
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: '-Xms512m -Xmx512m'
+    ports:
+      - '9200:9200'
+    volumes:
+      - sega_esdata:/usr/share/elasticsearch/data
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.16.1
+    container_name: sega-logstash
+    restart: unless-stopped
+    profiles: ['logging']
+    depends_on:
+      - elasticsearch
+    ports:
+      - '5044:5044'
+      - '9600:9600'
+    volumes:
+      - ./infra/logstash/pipeline/logstash.conf:/usr/share/logstash/pipeline/logstash.conf:ro
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.16.1
+    container_name: sega-kibana
+    restart: unless-stopped
+    profiles: ['logging']
+    depends_on:
+      - elasticsearch
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - '5601:5601'
+
+volumes:
+  sega_pgdata:
+  sega_minio_data:
+  sega_esdata:

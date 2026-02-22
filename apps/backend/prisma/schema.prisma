@@ -1,0 +1,919 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CHIEF_ACCOUNTANT
+  ACCOUNTANT
+  CASHIER
+  MANAGER
+  AUDITOR
+}
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum PartnerType {
+  CUSTOMER
+  SUPPLIER
+  BOTH
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  DRAFT
+  RECEIVED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
+}
+
+enum SupplierInvoiceApprovalStatus {
+  PENDING_LEVEL_1
+  PENDING_LEVEL_2
+  PENDING_LEVEL_3
+  PENDING_LEVEL_4
+  APPROVED
+  REJECTED
+}
+
+enum InvoiceKind {
+  PROFORMA
+  FISCAL
+  STORNO
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  OTHER
+}
+
+enum DepreciationMethod {
+  LINEAR
+  DEGRESSIVE
+  ACCELERATED
+}
+
+enum PayrollStatus {
+  DRAFT
+  POSTED
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+}
+
+enum BankStatementLineStatus {
+  UNMATCHED
+  MATCHED
+  IGNORED
+}
+
+enum ExportJobStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum ExportJobKind {
+  FINANCIAL_PDF
+  FINANCIAL_EXCEL
+  FINANCIAL_XML
+  ANAF_D300
+  ANAF_D394
+  ANAF_D112
+}
+
+enum SupplierInvoiceApprovalActionType {
+  APPROVE
+  REJECT
+}
+
+enum ApprovalChannel {
+  WEB
+  MOBILE
+}
+
+enum ApprovalDelegationScope {
+  PURCHASES_SUPPLIER_INVOICE_APPROVAL
+}
+
+enum StockValuationMethod {
+  FIFO
+  CMP
+}
+
+enum StockMovementType {
+  NIR
+  CONSUMPTION
+  INVENTORY_PLUS
+  INVENTORY_MINUS
+}
+
+enum JournalEntryStatus {
+  DRAFT
+  VALIDATED
+  CLOSED
+}
+
+enum OpenBankingConnectionStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  DISABLED
+}
+
+enum OpenBankingSyncStatus {
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+enum RevisalDeliveryStatus {
+  GENERATED
+  DELIVERED
+  FAILED
+}
+
+enum RevisalDeliveryChannel {
+  WEB_PORTAL
+  EMAIL
+  SFTP
+  MANUAL_UPLOAD
+  OTHER
+}
+
+model Company {
+  id            String @db.Uuid                @id @default(uuid())
+  code          String                @unique
+  name          String
+  cui           String?
+  isActive      Boolean               @default(true)
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  memberships   UserCompanyMembership[]
+  periods       AccountingPeriod[]
+  accounts      Account[]
+  journalEntries JournalEntry[]
+  partners      Partner[]
+  invoices      Invoice[]
+  payments      Payment[]
+  supplierInvoices SupplierInvoice[]
+  supplierPayments SupplierPayment[]
+  supplierInvoiceApprovals SupplierInvoiceApproval[]
+  approvalDelegations ApprovalDelegation[]
+  bankStatements BankStatement[]
+  bankStatementLines BankStatementLine[]
+  openBankingConnections OpenBankingConnection[]
+  openBankingSyncRuns OpenBankingSyncRun[]
+  revisalDeliveries RevisalDelivery[]
+  exportJobs ExportJob[]
+  dashboardSnapshots DashboardSnapshot[]
+  assets        Asset[]
+  stockItems    StockItem[]
+  stockLots     StockLot[]
+  stockMovements StockMovement[]
+  employees     Employee[]
+  payrollRuns   PayrollRun[]
+  auditLogs     AuditLog[]
+
+  @@index([isActive])
+  @@index([name])
+}
+
+model UserCompanyMembership {
+  id        String @db.Uuid   @id @default(uuid())
+  userId    String @db.Uuid
+  companyId String @db.Uuid
+  role      Role
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+  @@index([companyId])
+  @@index([userId, isDefault])
+}
+
+model AccountingPeriod {
+  id         String @db.Uuid       @id @default(uuid())
+  companyId  String @db.Uuid
+  period     String
+  status     PeriodStatus @default(OPEN)
+  closedAt   DateTime?
+  closedById String? @db.Uuid
+  notes      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  company    Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  closedBy   User?        @relation("ClosedPeriods", fields: [closedById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, period])
+  @@index([companyId, status])
+}
+
+model User {
+  id                 String @db.Uuid                @id @default(uuid())
+  email              String                @unique
+  name               String
+  passwordHash       String
+  mustChangePassword Boolean               @default(true)
+  mfaEnabled         Boolean               @default(false)
+  mfaSecret          String?
+  mfaPendingSecret   String?
+  role               Role                  @default(ACCOUNTANT)
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  journalEntries     JournalEntry[]
+  auditLogs          AuditLog[]
+  payrollRuns        PayrollRun[]
+  refreshSessions RefreshSession[]
+  memberships       UserCompanyMembership[]
+  closedPeriods     AccountingPeriod[]     @relation("ClosedPeriods")
+  uploadedBankStatements BankStatement[]   @relation("UploadedBankStatements")
+  openBankingConnectionsCreated OpenBankingConnection[] @relation("OpenBankingConnectionsCreated")
+  openBankingSyncRunsInitiated OpenBankingSyncRun[] @relation("OpenBankingSyncRunsInitiated")
+  revisalDeliveriesInitiated RevisalDelivery[] @relation("RevisalDeliveriesInitiated")
+  exportJobs        ExportJob[]            @relation("ExportJobsCreatedBy")
+  dashboardSnapshots DashboardSnapshot[]   @relation("DashboardSnapshotsCreatedBy")
+  supplierInvoiceApprovalActions SupplierInvoiceApproval[] @relation("SupplierInvoiceApprovalApprovedBy")
+  supplierInvoiceDelegatedApprovalActions SupplierInvoiceApproval[] @relation("SupplierInvoiceApprovalDelegatedFrom")
+  supplierInvoiceApprovalFinalizations SupplierInvoice[] @relation("SupplierInvoiceApprovalFinalizedBy")
+  approvalDelegationsGiven ApprovalDelegation[] @relation("ApprovalDelegationFrom")
+  approvalDelegationsReceived ApprovalDelegation[] @relation("ApprovalDelegationTo")
+}
+
+model RefreshSession {
+  id                 String @db.Uuid   @id @default(uuid())
+  userId             String @db.Uuid
+  tokenHash          String
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  replacedBySessionId String? @db.Uuid
+  userAgent          String?
+  ipAddress          String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@unique([tokenHash])
+}
+
+model Account {
+  id         String @db.Uuid        @id @default(uuid())
+  companyId  String? @db.Uuid
+  code       String
+  name       String
+  type       AccountType
+  currency   String        @default("RON")
+  isActive   Boolean       @default(true)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  lines      JournalLine[]
+  company    Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([type])
+  @@index([isActive])
+}
+
+model JournalEntry {
+  id          String @db.Uuid        @id @default(uuid())
+  companyId   String? @db.Uuid
+  number      String?
+  date        DateTime
+  description String
+  period      String
+  status      JournalEntryStatus @default(VALIDATED)
+  posted      Boolean       @default(true)
+  sourceModule String?
+  reversalOfEntryId String? @db.Uuid
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  createdById String @db.Uuid
+  createdBy   User          @relation(fields: [createdById], references: [id])
+  lines       JournalLine[]
+  reversalOf  JournalEntry? @relation("JournalEntryReversal", fields: [reversalOfEntryId], references: [id], onDelete: SetNull)
+  reversalEntries JournalEntry[] @relation("JournalEntryReversal")
+  payrollRun  PayrollRun?
+  assetDepreciations AssetDepreciation[]
+  company     Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@unique([reversalOfEntryId])
+  @@index([companyId])
+  @@index([date])
+  @@index([period])
+  @@index([status])
+}
+
+model JournalLine {
+  id          String @db.Uuid       @id @default(uuid())
+  entryId     String @db.Uuid
+  accountId   String @db.Uuid
+  debit       Decimal      @default(0) @db.Decimal(18, 2)
+  credit      Decimal      @default(0) @db.Decimal(18, 2)
+  explanation String?
+  createdAt   DateTime     @default(now())
+  entry       JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account     Account      @relation(fields: [accountId], references: [id])
+
+  @@index([entryId])
+  @@index([accountId])
+}
+
+model StockItem {
+  id              String @db.Uuid               @id @default(uuid())
+  companyId       String? @db.Uuid
+  code            String
+  name            String
+  unit            String               @default("BUC")
+  valuationMethod StockValuationMethod @default(FIFO)
+  minStockQty     Decimal              @default(0) @db.Decimal(18, 3)
+  quantityOnHand  Decimal              @default(0) @db.Decimal(18, 3)
+  avgUnitCost     Decimal              @default(0) @db.Decimal(18, 4)
+  isActive        Boolean              @default(true)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  company         Company?             @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  movements       StockMovement[]
+  lots            StockLot[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, valuationMethod])
+  @@index([isActive])
+}
+
+model StockMovement {
+  id               String @db.Uuid            @id @default(uuid())
+  companyId        String? @db.Uuid
+  itemId           String @db.Uuid
+  type             StockMovementType
+  movementDate     DateTime
+  quantity         Decimal           @db.Decimal(18, 3)
+  unitCost         Decimal           @db.Decimal(18, 4)
+  totalCost        Decimal           @db.Decimal(18, 2)
+  resultingQuantity Decimal          @db.Decimal(18, 3)
+  documentNumber   String?
+  note             String?
+  sourceLots       Json?
+  createdAt        DateTime          @default(now())
+  company          Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  item             StockItem         @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  generatedLots    StockLot[]        @relation("StockLotSourceMovement")
+
+  @@index([companyId])
+  @@index([itemId, movementDate])
+  @@index([companyId, movementDate])
+  @@index([type])
+}
+
+model StockLot {
+  id               String @db.Uuid        @id @default(uuid())
+  companyId        String? @db.Uuid
+  itemId           String @db.Uuid
+  sourceMovementId String? @db.Uuid
+  receivedAt       DateTime
+  unitCost         Decimal       @db.Decimal(18, 4)
+  initialQuantity  Decimal       @db.Decimal(18, 3)
+  remainingQuantity Decimal      @db.Decimal(18, 3)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  company          Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  item             StockItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  sourceMovement   StockMovement? @relation("StockLotSourceMovement", fields: [sourceMovementId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([itemId, receivedAt])
+  @@index([itemId, remainingQuantity])
+}
+
+model Partner {
+  id         String @db.Uuid      @id @default(uuid())
+  companyId  String? @db.Uuid
+  name       String
+  cui        String?
+  iban       String?
+  type       PartnerType @default(BOTH)
+  email      String?
+  phone      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  invoices   Invoice[]
+  payments   Payment[]
+  supplierInvoices SupplierInvoice[] @relation("SupplierInvoices")
+  supplierPayments SupplierPayment[] @relation("SupplierPayments")
+  company    Company?    @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, cui])
+  @@index([companyId])
+  @@index([type])
+  @@index([name])
+  @@index([email])
+  @@index([phone])
+  @@index([createdAt])
+}
+
+model Invoice {
+  id          String @db.Uuid        @id @default(uuid())
+  companyId   String? @db.Uuid
+  number      String
+  kind        InvoiceKind   @default(FISCAL)
+  stornoOfInvoiceId String? @db.Uuid
+  partnerId   String @db.Uuid
+  partner     Partner       @relation(fields: [partnerId], references: [id])
+  stornoOfInvoice Invoice? @relation("InvoiceStorno", fields: [stornoOfInvoiceId], references: [id], onDelete: SetNull)
+  stornoInvoices Invoice[] @relation("InvoiceStorno")
+  issueDate   DateTime
+  dueDate     DateTime
+  currency    String        @default("RON")
+  subtotal    Decimal       @db.Decimal(18, 2)
+  vat         Decimal       @db.Decimal(18, 2)
+  total       Decimal       @db.Decimal(18, 2)
+  status      InvoiceStatus @default(DRAFT)
+  description String?
+  efacturaStatus String?
+  efacturaUploadIndex String?
+  efacturaDownloadId String?
+  efacturaMessage String?
+  efacturaSignedXmlPath String?
+  efacturaSubmittedAt DateTime?
+  efacturaAcceptedAt DateTime?
+  efacturaLastSyncAt DateTime?
+  efacturaRawStatus Json?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  payments    Payment[]
+  company     Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@index([partnerId])
+  @@index([partnerId, issueDate])
+  @@index([stornoOfInvoiceId])
+  @@index([companyId, efacturaStatus])
+  @@index([createdAt])
+}
+
+model SupplierInvoice {
+  id          String @db.Uuid              @id @default(uuid())
+  companyId   String? @db.Uuid
+  number      String
+  supplierId  String @db.Uuid
+  supplier    Partner             @relation("SupplierInvoices", fields: [supplierId], references: [id])
+  receivedDate DateTime
+  dueDate     DateTime
+  currency    String              @default("RON")
+  subtotal    Decimal             @db.Decimal(18, 2)
+  vat         Decimal             @db.Decimal(18, 2)
+  total       Decimal             @db.Decimal(18, 2)
+  status      SupplierInvoiceStatus @default(RECEIVED)
+  approvalStatus SupplierInvoiceApprovalStatus @default(PENDING_LEVEL_1)
+  approvalCurrentLevel Int @default(1)
+  approvalRequiredLevel Int @default(3)
+  approvalRequestedAt DateTime?
+  approvalFinalizedAt DateTime?
+  approvalFinalizedById String? @db.Uuid
+  approvalRejectedReason String?
+  description String?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+  payments    SupplierPayment[]
+  approvals   SupplierInvoiceApproval[]
+  approvalFinalizedBy User?       @relation("SupplierInvoiceApprovalFinalizedBy", fields: [approvalFinalizedById], references: [id], onDelete: SetNull)
+  company     Company?            @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@index([status])
+  @@index([approvalStatus])
+  @@index([approvalFinalizedById])
+  @@index([companyId, approvalStatus])
+  @@index([receivedDate])
+  @@index([dueDate])
+  @@index([supplierId])
+  @@index([supplierId, receivedDate])
+  @@index([createdAt])
+}
+
+model SupplierInvoiceApproval {
+  id               String @db.Uuid                            @id @default(uuid())
+  companyId        String? @db.Uuid
+  supplierInvoiceId String @db.Uuid
+  level            Int
+  action           SupplierInvoiceApprovalActionType
+  channel          ApprovalChannel                   @default(WEB)
+  note             String?
+  approvedById     String @db.Uuid
+  delegatedFromUserId String? @db.Uuid
+  createdAt        DateTime                          @default(now())
+  company          Company?                          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  supplierInvoice  SupplierInvoice                   @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade)
+  approvedBy       User                              @relation("SupplierInvoiceApprovalApprovedBy", fields: [approvedById], references: [id], onDelete: Restrict)
+  delegatedFrom    User?                             @relation("SupplierInvoiceApprovalDelegatedFrom", fields: [delegatedFromUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([supplierInvoiceId, createdAt])
+  @@index([approvedById, createdAt])
+  @@index([delegatedFromUserId])
+}
+
+model ApprovalDelegation {
+  id         String @db.Uuid                   @id @default(uuid())
+  companyId  String? @db.Uuid
+  scope      ApprovalDelegationScope  @default(PURCHASES_SUPPLIER_INVOICE_APPROVAL)
+  fromUserId String @db.Uuid
+  toUserId   String @db.Uuid
+  startsAt   DateTime
+  endsAt     DateTime
+  isActive   Boolean                  @default(true)
+  reason     String?
+  createdAt  DateTime                 @default(now())
+  updatedAt  DateTime                 @updatedAt
+  company    Company?                 @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  fromUser   User                     @relation("ApprovalDelegationFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser     User                     @relation("ApprovalDelegationTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, scope, fromUserId, toUserId, startsAt])
+  @@index([companyId])
+  @@index([scope, isActive])
+  @@index([fromUserId, startsAt, endsAt])
+  @@index([toUserId, startsAt, endsAt])
+}
+
+model Payment {
+  id         String @db.Uuid        @id @default(uuid())
+  companyId  String? @db.Uuid
+  invoiceId  String? @db.Uuid
+  partnerId  String? @db.Uuid
+  date       DateTime
+  amount     Decimal       @db.Decimal(18, 2)
+  method     PaymentMethod @default(BANK_TRANSFER)
+  reference  String?
+  createdAt  DateTime      @default(now())
+  invoice    Invoice?      @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  partner    Partner?      @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  company    Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([date])
+  @@index([invoiceId])
+}
+
+model SupplierPayment {
+  id               String @db.Uuid          @id @default(uuid())
+  companyId        String? @db.Uuid
+  supplierInvoiceId String? @db.Uuid
+  supplierId       String? @db.Uuid
+  date             DateTime
+  amount           Decimal         @db.Decimal(18, 2)
+  method           PaymentMethod   @default(BANK_TRANSFER)
+  reference        String?
+  createdAt        DateTime        @default(now())
+  supplierInvoice  SupplierInvoice? @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  supplier         Partner?        @relation("SupplierPayments", fields: [supplierId], references: [id], onDelete: SetNull)
+  company          Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([date])
+  @@index([supplierInvoiceId])
+}
+
+model Asset {
+  id                 String @db.Uuid             @id @default(uuid())
+  companyId          String? @db.Uuid
+  code               String?
+  name               String
+  value              Decimal            @db.Decimal(18, 2)
+  residualValue      Decimal            @default(0) @db.Decimal(18, 2)
+  depreciationMethod DepreciationMethod
+  startDate          DateTime
+  usefulLifeMonths   Int
+  isActive           Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  depreciationRecords AssetDepreciation[]
+  company            Company?           @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([isActive])
+  @@index([name])
+  @@index([startDate])
+  @@index([createdAt])
+}
+
+model Employee {
+  id           String @db.Uuid   @id @default(uuid())
+  companyId    String? @db.Uuid
+  cnp          String
+  name         String
+  contractType String
+  personalDeduction Decimal @default(0) @db.Decimal(18, 2)
+  grossSalary  Decimal  @db.Decimal(18, 2)
+  isActive     Boolean  @default(true)
+  hiredAt      DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  payrollLines PayrollLine[]
+  company      Company?  @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, cnp])
+  @@index([companyId])
+  @@index([isActive])
+  @@index([name])
+  @@index([hiredAt])
+  @@index([contractType])
+  @@index([createdAt])
+}
+
+model PayrollRun {
+  id            String @db.Uuid        @id @default(uuid())
+  companyId     String? @db.Uuid
+  period        String
+  payDate       DateTime
+  status        PayrollStatus @default(DRAFT)
+  totalGross    Decimal       @db.Decimal(18, 2)
+  totalNet      Decimal       @db.Decimal(18, 2)
+  totalCas      Decimal       @db.Decimal(18, 2)
+  totalCass     Decimal       @db.Decimal(18, 2)
+  totalTax      Decimal       @db.Decimal(18, 2)
+  totalCam      Decimal       @default(0) @db.Decimal(18, 2)
+  createdById   String @db.Uuid
+  createdBy     User          @relation(fields: [createdById], references: [id])
+  journalEntryId String? @db.Uuid      @unique
+  journalEntry  JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  lines         PayrollLine[]
+  company       Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, period])
+  @@index([companyId])
+  @@index([period])
+}
+
+model PayrollLine {
+  id                String @db.Uuid     @id @default(uuid())
+  runId             String @db.Uuid
+  employeeId        String @db.Uuid
+  grossSalary       Decimal    @db.Decimal(18, 2)
+  personalDeduction Decimal    @db.Decimal(18, 2)
+  cas               Decimal    @db.Decimal(18, 2)
+  cass              Decimal    @db.Decimal(18, 2)
+  incomeTax         Decimal    @db.Decimal(18, 2)
+  cam               Decimal    @default(0) @db.Decimal(18, 2)
+  netSalary         Decimal    @db.Decimal(18, 2)
+  createdAt         DateTime   @default(now())
+  run               PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee          Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([runId, employeeId])
+  @@index([employeeId])
+}
+
+model AssetDepreciation {
+  id                 String @db.Uuid       @id @default(uuid())
+  assetId            String @db.Uuid
+  period             String
+  depreciationDate   DateTime
+  depreciationAmount Decimal      @db.Decimal(18, 2)
+  accumulatedAmount  Decimal      @db.Decimal(18, 2)
+  bookValue          Decimal      @db.Decimal(18, 2)
+  journalEntryId     String? @db.Uuid
+  journalEntry       JournalEntry? @relation(fields: [journalEntryId], references: [id], onDelete: SetNull)
+  createdAt          DateTime     @default(now())
+  asset              Asset        @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, period])
+  @@index([period])
+}
+
+model AuditLog {
+  id         String @db.Uuid   @id @default(uuid())
+  companyId  String? @db.Uuid
+  userId     String? @db.Uuid
+  userEmail  String?
+  userRole   Role?
+  sessionId  String? @db.Uuid
+  tableName  String
+  recordId   String? @db.Uuid
+  action     String
+  reason     String?
+  ipAddress  String?
+  userAgent  String?
+  oldValues  Json?
+  newValues  Json?
+  beforeData Json?
+  afterData  Json?
+  timestamp  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  company    Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([companyId])
+  @@index([tableName])
+  @@index([timestamp])
+  @@index([companyId, timestamp])
+  @@index([userId, timestamp])
+  @@index([sessionId, timestamp])
+}
+
+model BankStatement {
+  id             String @db.Uuid              @id @default(uuid())
+  companyId      String @db.Uuid
+  accountCode    String
+  externalAccountId String?
+  statementDate  DateTime
+  currency       String              @default("RON")
+  openingBalance Decimal?            @db.Decimal(18, 2)
+  closingBalance Decimal?            @db.Decimal(18, 2)
+  sourceLabel    String?
+  uploadedById   String @db.Uuid
+  importedAt     DateTime            @default(now())
+  createdAt      DateTime            @default(now())
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  uploadedBy     User                @relation("UploadedBankStatements", fields: [uploadedById], references: [id], onDelete: Restrict)
+  lines          BankStatementLine[]
+
+  @@index([companyId, statementDate])
+  @@index([companyId, importedAt])
+  @@index([companyId, externalAccountId, statementDate])
+}
+
+model BankStatementLine {
+  id             String @db.Uuid                  @id @default(uuid())
+  companyId      String @db.Uuid
+  statementId    String @db.Uuid
+  externalTransactionId String?
+  date           DateTime
+  amount         Decimal                 @db.Decimal(18, 2)
+  description    String?
+  reference      String?
+  counterpartyName String?
+  counterpartyIban String?
+  status         BankStatementLineStatus @default(UNMATCHED)
+  matchedType    String?
+  matchedRecordId String? @db.Uuid
+  matchedAt      DateTime?
+  createdAt      DateTime                @default(now())
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  statement      BankStatement           @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([statementId, date])
+  @@index([reference])
+  @@index([companyId, externalTransactionId])
+}
+
+model OpenBankingConnection {
+  id               String @db.Uuid                    @id @default(uuid())
+  companyId        String @db.Uuid
+  createdById      String @db.Uuid
+  bankCode         String
+  providerName     String
+  accountCode      String
+  externalConsentId String?
+  externalAccountId String?
+  status           OpenBankingConnectionStatus @default(PENDING)
+  accessToken      String?
+  refreshToken     String?
+  tokenExpiresAt   DateTime?
+  lastSyncedAt     DateTime?
+  lastCursorDate   DateTime?
+  errorCount       Int                       @default(0)
+  lastErrorAt      DateTime?
+  lastErrorMessage String?
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  company          Company                   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy        User                      @relation("OpenBankingConnectionsCreated", fields: [createdById], references: [id], onDelete: Restrict)
+  syncRuns         OpenBankingSyncRun[]
+
+  @@index([companyId, status])
+  @@index([companyId, bankCode])
+  @@index([createdById])
+}
+
+model OpenBankingSyncRun {
+  id                  String @db.Uuid                 @id @default(uuid())
+  connectionId        String @db.Uuid
+  companyId           String @db.Uuid
+  initiatedByUserId   String? @db.Uuid
+  status              OpenBankingSyncStatus @default(RUNNING)
+  startedAt           DateTime                    @default(now())
+  finishedAt          DateTime?
+  cursorFrom          DateTime?
+  cursorTo            DateTime?
+  statementsImported  Int                         @default(0)
+  transactionsImported Int                        @default(0)
+  balancesSynced      Int                         @default(0)
+  errorMessage        String?
+  createdAt           DateTime                    @default(now())
+  connection          OpenBankingConnection       @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  company             Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  initiatedByUser     User?                       @relation("OpenBankingSyncRunsInitiated", fields: [initiatedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([connectionId, startedAt])
+  @@index([companyId, startedAt])
+  @@index([status, startedAt])
+}
+
+model RevisalDelivery {
+  id                  String @db.Uuid             @id @default(uuid())
+  companyId           String @db.Uuid
+  initiatedById       String @db.Uuid
+  period              String
+  deliveryReference   String
+  status              RevisalDeliveryStatus      @default(GENERATED)
+  channel             RevisalDeliveryChannel?
+  deliveredAt         DateTime?
+  receiptNumber       String?
+  xmlContent          String
+  xmlChecksum         String
+  employeeCount       Int                        @default(0)
+  validationPerformed Boolean                    @default(false)
+  validationPassed    Boolean?
+  validationErrors    Json?
+  validationWarnings  Json?
+  createdAt           DateTime                   @default(now())
+  updatedAt           DateTime                   @updatedAt
+  company             Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  initiatedBy         User                       @relation("RevisalDeliveriesInitiated", fields: [initiatedById], references: [id], onDelete: Restrict)
+
+  @@unique([companyId, deliveryReference])
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@index([companyId, period])
+  @@index([initiatedById])
+}
+
+model ExportJob {
+  id             String @db.Uuid          @id @default(uuid())
+  companyId      String @db.Uuid
+  createdById    String @db.Uuid
+  kind           ExportJobKind
+  status         ExportJobStatus @default(QUEUED)
+  payload        Json?
+  attempts       Int             @default(0)
+  maxAttempts    Int             @default(3)
+  errorMessage   String?
+  resultMimeType String?
+  resultFilename String?
+  resultData     Bytes?
+  createdAt      DateTime        @default(now())
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy      User            @relation("ExportJobsCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([status, createdAt])
+}
+
+model DashboardSnapshot {
+  id          String @db.Uuid   @id @default(uuid())
+  companyId   String @db.Uuid
+  createdById String @db.Uuid
+  key         String?
+  from        DateTime?
+  to          DateTime?
+  payload     Json
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy   User     @relation("DashboardSnapshotsCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, key, createdAt])
+}
