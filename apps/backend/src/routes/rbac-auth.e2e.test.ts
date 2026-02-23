@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { after, before, test } from 'node:test';
 import type { Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { setTimeout as sleep } from 'node:timers/promises';
 import bcrypt from 'bcrypt';
 import { generateSecret, generateSync } from 'otplib';
 import { Role } from '@prisma/client';
@@ -17,6 +18,8 @@ const TEST_COMPANY_CODE = `e2e-${RUN_ID}`;
 const TEST_COMPANY_NAME = `E2E RBAC ${RUN_ID}`;
 const TEST_SECONDARY_COMPANY_CODE = `e2e-secondary-${RUN_ID}`;
 const TEST_SECONDARY_COMPANY_NAME = `E2E RBAC Secondary ${RUN_ID}`;
+const JOURNAL_LOOKUP_MAX_ATTEMPTS = 8;
+const JOURNAL_LOOKUP_DELAY_MS = 60;
 
 interface TestUser {
   id: string;
@@ -93,6 +96,22 @@ const RBAC_SCENARIOS: EndpointScenario[] = [
     expectedAllowedStatus: 200,
   },
   {
+    name: 'GET /api/compliance/report',
+    method: 'GET',
+    path: '/api/compliance/report',
+    requiredPermissions: [PERMISSIONS.AUDIT_READ],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
+    expectedAllowedStatus: 200,
+  },
+  {
+    name: 'POST /api/compliance/retention/run',
+    method: 'POST',
+    path: '/api/compliance/retention/run',
+    requiredPermissions: [],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT],
+    expectedAllowedStatus: 200,
+  },
+  {
     name: 'POST /api/periods/:period/close',
     method: 'POST',
     path: '/api/periods/2026-01/close',
@@ -128,6 +147,8 @@ function extractCookieHeader(response: Response): string {
 }
 
 async function loginAndGetCookieHeader(user: TestUser): Promise<string> {
+  assert.ok(companyId, 'Compania principală lipsește pentru selecția obligatorie post-login');
+
   const mfaCode = user.mfaSecret ? generateSync({ secret: user.mfaSecret }) : undefined;
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
@@ -142,9 +163,30 @@ async function loginAndGetCookieHeader(user: TestUser): Promise<string> {
   });
 
   assert.equal(response.status, 200, `Login eșuat pentru ${user.email} cu status ${response.status}`);
-  const cookieHeader = extractCookieHeader(response);
-  assert.ok(cookieHeader.includes('sega_access_token='), `Cookie de acces lipsă pentru ${user.email}`);
-  return cookieHeader;
+  const loginCookieHeader = extractCookieHeader(response);
+  assert.ok(loginCookieHeader.includes('sega_access_token='), `Cookie de acces lipsă pentru ${user.email}`);
+
+  const switchResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
+    method: 'POST',
+    headers: {
+      cookie: loginCookieHeader,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      companyId,
+      makeDefault: true,
+      reason: 'rbac-e2e-initial-company-selection',
+    }),
+  });
+
+  assert.equal(
+    switchResponse.status,
+    200,
+    `Selectarea companiei după login a eșuat pentru ${user.email} cu status ${switchResponse.status}`,
+  );
+  const switchedCookieHeader = extractCookieHeader(switchResponse);
+  assert.ok(switchedCookieHeader.includes('sega_access_token='), `Cookie nou lipsă după switch-company pentru ${user.email}`);
+  return switchedCookieHeader;
 }
 
 async function requestAsRole(
@@ -171,6 +213,65 @@ async function requestAsRole(
     headers,
     body,
   });
+}
+
+interface JournalLookupOptions {
+  includeLines?: boolean;
+  attempts?: number;
+  delayMs?: number;
+}
+
+async function findJournalEntryByDescription(
+  description: string,
+  options: JournalLookupOptions = {},
+): Promise<
+  | {
+      id: string;
+      lines?: Array<{ debit: unknown; credit: unknown }>;
+    }
+  | null
+> {
+  assert.ok(companyId, 'Compania fixture lipsește pentru verificarea jurnalului contabil.');
+  const attempts = options.attempts ?? JOURNAL_LOOKUP_MAX_ATTEMPTS;
+  const delayMs = options.delayMs ?? JOURNAL_LOOKUP_DELAY_MS;
+  const includeLines = options.includeLines === true;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const entry = await prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT set_config('app.enforce_rls', '0', true)`;
+      if (includeLines) {
+        return tx.journalEntry.findFirst({
+          where: {
+            companyId: companyId!,
+            description,
+          },
+          include: {
+            lines: true,
+          },
+        });
+      }
+
+      return tx.journalEntry.findFirst({
+        where: {
+          companyId: companyId!,
+          description,
+        },
+        select: {
+          id: true,
+        },
+      });
+    });
+
+    if (entry) {
+      return entry;
+    }
+
+    if (attempt < attempts - 1) {
+      await sleep(delayMs * (attempt + 1));
+    }
+  }
+
+  return null;
 }
 
 before(async () => {
@@ -912,14 +1013,8 @@ test('validări funcționale: PROFORMA nu postează contabil, STORNO doar pe fac
   assert.equal(proformaPayload.kind, 'PROFORMA');
   assert.equal(proformaPayload.status, 'DRAFT');
 
-  const proformaPosting = await prisma.journalEntry.findFirst({
-    where: {
-      companyId,
-      description: `Postare automată factură ${proformaPayload.number}`,
-    },
-    select: {
-      id: true,
-    },
+  const proformaPosting = await findJournalEntryByDescription(`Postare automată factură ${proformaPayload.number}`, {
+    attempts: 1,
   });
   assert.equal(proformaPosting, null, 'PROFORMA nu trebuie să genereze postare contabilă');
 
@@ -984,15 +1079,7 @@ test('validări funcționale: PROFORMA nu postează contabil, STORNO doar pe fac
     partnerId: string;
   };
 
-  const sourcePosting = await prisma.journalEntry.findFirst({
-    where: {
-      companyId,
-      description: `Postare automată factură ${sourcePayload.number}`,
-    },
-    select: {
-      id: true,
-    },
-  });
+  const sourcePosting = await findJournalEntryByDescription(`Postare automată factură ${sourcePayload.number}`);
   assert.ok(sourcePosting?.id, 'Factura FISCAL sursă trebuie să genereze postare contabilă');
 
   const stornoNumber = `E2E-STORNO-${RUN_ID}-${Math.random().toString(36).slice(2, 6)}`.slice(0, 40);
@@ -1028,14 +1115,8 @@ test('validări funcționale: PROFORMA nu postează contabil, STORNO doar pe fac
   assert.equal(Number(stornoPayload.vat) < 0, true);
   assert.equal(Number(stornoPayload.total) < 0, true);
 
-  const stornoPosting = await prisma.journalEntry.findFirst({
-    where: {
-      companyId,
-      description: `Postare automată storno ${stornoNumber}`,
-    },
-    include: {
-      lines: true,
-    },
+  const stornoPosting = await findJournalEntryByDescription(`Postare automată storno ${stornoNumber}`, {
+    includeLines: true,
   });
   assert.ok(stornoPosting?.id, 'Factura STORNO trebuie să genereze postare contabilă inversă');
   const debitTotal = Number(
