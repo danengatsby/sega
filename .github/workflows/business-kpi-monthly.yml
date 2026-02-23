@@ -1,0 +1,99 @@
+name: Business KPI Monthly
+
+on:
+  workflow_dispatch:
+    inputs:
+      period:
+        description: 'Optional period (YYYY-MM). Default: previous month.'
+        required: false
+        type: string
+      company_id:
+        description: 'Optional company UUID override. Default: secret KPI_REPORT_COMPANY_ID.'
+        required: false
+        type: string
+      nps_score:
+        description: 'Optional NPS score override (1..5).'
+        required: false
+        type: string
+      nps_respondents:
+        description: 'Optional NPS respondent count.'
+        required: false
+        type: string
+  schedule:
+    - cron: '0 4 2 * *'
+
+permissions:
+  contents: read
+
+jobs:
+  business-kpi-monthly:
+    name: Business KPI Monthly
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.KPI_REPORT_DATABASE_URL }}
+      KPI_REPORT_COMPANY_ID: ${{ secrets.KPI_REPORT_COMPANY_ID }}
+      KPI_REPORT_NPS_SCORE: ${{ secrets.KPI_REPORT_NPS_SCORE }}
+      KPI_REPORT_NPS_RESPONDENTS: ${{ secrets.KPI_REPORT_NPS_RESPONDENTS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate required runtime secrets
+        run: |
+          if [ -z "${DATABASE_URL}" ]; then
+            echo "Missing required secret: KPI_REPORT_DATABASE_URL"
+            exit 1
+          fi
+
+          company_override="${COMPANY_ID_INPUT:-}"
+          if [ -z "${KPI_REPORT_COMPANY_ID}" ] && [ -z "${company_override}" ]; then
+            echo "Missing company id: set secret KPI_REPORT_COMPANY_ID or workflow input company_id"
+            exit 1
+          fi
+        env:
+          COMPANY_ID_INPUT: ${{ github.event.inputs.company_id }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate monthly business KPI report
+        run: |
+          args=()
+
+          if [ -n "${PERIOD_INPUT}" ]; then
+            args+=(--period="${PERIOD_INPUT}")
+          fi
+
+          if [ -n "${COMPANY_ID_INPUT}" ]; then
+            args+=(--company-id="${COMPANY_ID_INPUT}")
+          fi
+
+          if [ -n "${NPS_SCORE_INPUT}" ]; then
+            args+=(--nps-score="${NPS_SCORE_INPUT}")
+          fi
+
+          if [ -n "${NPS_RESPONDENTS_INPUT}" ]; then
+            args+=(--nps-respondents="${NPS_RESPONDENTS_INPUT}")
+          fi
+
+          npx tsx apps/backend/scripts/compliance/generate-monthly-kpi-report.ts "${args[@]}"
+        env:
+          PERIOD_INPUT: ${{ github.event.inputs.period }}
+          COMPANY_ID_INPUT: ${{ github.event.inputs.company_id }}
+          NPS_SCORE_INPUT: ${{ github.event.inputs.nps_score }}
+          NPS_RESPONDENTS_INPUT: ${{ github.event.inputs.nps_respondents }}
+
+      - name: Upload KPI report artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-kpi-monthly-report
+          path: docs/reports/kpi-business-report-*.md
+          if-no-files-found: warn

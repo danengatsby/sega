@@ -21,6 +21,8 @@ Capitole tintite:
 - `C4-02`: livrat (workflow `.github/workflows/release-checklist.yml` + template `.github/pull_request_template.md`).
 - `C5-01`: livrat (`docs/raci-tehnic-2026-02-23.md` - include politica code review si setari recomandate branch protection).
 - `C8-01`: livrat (`docs/risk-register-2026-02-23.md`).
+- `C9-01`: livrat baseline (`.github/workflows/business-kpi-monthly.yml` + `apps/backend/scripts/compliance/generate-monthly-kpi-report.ts`).
+- `C11-01`: livrat baseline (`docs/executive-review-2026-Q1.md` + `docs/adr-index-2026-02-23.md` + `docs/adr/*`).
 
 ## Principii de executie
 
