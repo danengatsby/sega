@@ -123,7 +123,7 @@ function resolveOutputPath(period: string, outputArg?: string): string {
     return resolve(process.cwd(), candidate);
   }
 
-  return resolve(process.cwd(), `../../docs/reports/kpi-business-report-${period}.md`);
+  return resolve(process.cwd(), `docs/reports/kpi-business-report-${period}.md`);
 }
 
 function toPercent(value: number): string {
