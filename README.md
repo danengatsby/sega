@@ -427,6 +427,8 @@ Backlog-ul executabil P0/P1/P2, mapat pe capitolele planului v3.0, este disponib
 - `docs/microservices-transition-roadmap-2026-02-22.md`
 - `docs/raport-final-conformitate-2026-02-23.md`
 - `docs/plan-inchidere-conformitate-partiala-2026-02-23.md`
+- `docs/kpi-business-dictionary-2026-02-23.md`
+- `docs/traceability-matrix-2026-02-23.md`
 
 ## Contracte microservicii extrase
 
