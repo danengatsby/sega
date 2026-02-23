@@ -29,6 +29,8 @@ function extractCookieHeader(response: Response): string {
 }
 
 async function loginAndGetCookieHeader(): Promise<string> {
+  assert.ok(companyId, 'Compania fixture lipsește pentru selecția obligatorie post-login');
+
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: {
@@ -41,7 +43,22 @@ async function loginAndGetCookieHeader(): Promise<string> {
     }),
   });
   assert.equal(response.status, 200, `Autentificarea a eșuat cu status ${response.status}`);
-  return extractCookieHeader(response);
+  const loginCookieHeader = extractCookieHeader(response);
+
+  const switchResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
+    method: 'POST',
+    headers: {
+      cookie: loginCookieHeader,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      companyId,
+      makeDefault: true,
+      reason: 'journal-workflow-initial-company-selection',
+    }),
+  });
+  assert.equal(switchResponse.status, 200, `Selectarea companiei a eșuat cu status ${switchResponse.status}`);
+  return extractCookieHeader(switchResponse);
 }
 
 before(async () => {

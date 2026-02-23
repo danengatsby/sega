@@ -103,20 +103,79 @@ function loginSession() {
   }
 
   const payload = parseJson(response);
-  const companyId =
-    payload && payload.user && typeof payload.user.companyId === 'string' ? payload.user.companyId : null;
-
-  if (typeof companyId !== 'string' || companyId.length === 0) {
-    fail('Login fără companyId în payload. Verifică fixture-ul de perf user.');
-  }
-
   if (payload && payload.user && payload.user.mustChangePassword === true) {
     fail('User-ul de performanță are mustChangePassword=true. Rulează seed-ul de perf înainte de test.');
   }
 
-  const accessToken = extractCookieToken(response, 'sega_access_token');
+  let accessToken = extractCookieToken(response, 'sega_access_token');
   if (!accessToken) {
     fail('Nu am putut extrage cookie-ul sega_access_token după login.');
+  }
+
+  let companyId =
+    payload && payload.user && typeof payload.user.companyId === 'string' ? payload.user.companyId : null;
+
+  if (typeof companyId !== 'string' || companyId.length === 0) {
+    const availableCompanies =
+      payload &&
+      payload.user &&
+      Array.isArray(payload.user.availableCompanies)
+        ? payload.user.availableCompanies
+        : [];
+
+    const preferredCompany =
+      availableCompanies.find((company) => company && company.isDefault === true) ??
+      availableCompanies[0] ??
+      null;
+
+    const targetCompanyId =
+      preferredCompany && typeof preferredCompany.id === 'string' && preferredCompany.id.length > 0
+        ? preferredCompany.id
+        : null;
+
+    if (!targetCompanyId) {
+      fail('Login fără companyId și fără availableCompanies valide pentru switch-company.');
+    }
+
+    const switchResponse = http.post(
+      `${baseUrl}/api/auth/switch-company`,
+      JSON.stringify({
+        companyId: targetCompanyId,
+        makeDefault: true,
+        reason: 'perf-k6-initial-company-selection',
+      }),
+      {
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${accessToken}`,
+        },
+        tags: {
+          route: 'auth_switch_company',
+        },
+      },
+    );
+
+    const switched = check(switchResponse, {
+      'switch-company status is 200': (res) => res.status === 200,
+    });
+    if (!switched) {
+      fail(`switch-company a eșuat. Status=${switchResponse.status}.`);
+    }
+
+    const switchPayload = parseJson(switchResponse);
+    companyId =
+      switchPayload && switchPayload.user && typeof switchPayload.user.companyId === 'string'
+        ? switchPayload.user.companyId
+        : null;
+
+    const switchedAccessToken = extractCookieToken(switchResponse, 'sega_access_token');
+    if (switchedAccessToken) {
+      accessToken = switchedAccessToken;
+    }
+  }
+
+  if (typeof companyId !== 'string' || companyId.length === 0) {
+    fail('Nu am putut determina compania activă după login/switch-company.');
   }
 
   return {

@@ -59,6 +59,8 @@ function extractCookieHeader(response: Response): string {
 }
 
 async function loginAndGetCookieHeader(): Promise<string> {
+  assert.ok(companyId, 'Compania fixture lipsește pentru selecția obligatorie post-login');
+
   const response = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: {
@@ -71,7 +73,22 @@ async function loginAndGetCookieHeader(): Promise<string> {
   });
 
   assert.equal(response.status, 200, `Autentificarea a eșuat cu status ${response.status}`);
-  return extractCookieHeader(response);
+  const loginCookieHeader = extractCookieHeader(response);
+
+  const switchResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
+    method: 'POST',
+    headers: {
+      cookie: loginCookieHeader,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      companyId,
+      makeDefault: true,
+      reason: 'bank-import-integration-initial-company-selection',
+    }),
+  });
+  assert.equal(switchResponse.status, 200, `Selectarea companiei a eșuat cu status ${switchResponse.status}`);
+  return extractCookieHeader(switchResponse);
 }
 
 before(async () => {
@@ -501,10 +518,13 @@ test('import-file MT940 + suggest + reconcile pentru factură client', async () 
   assert.equal(reconcilePayload.invoice.status, 'PAID');
   assert.equal(Number(reconcilePayload.payment.amount), 238);
 
-  const dbPayment = await prisma.payment.findUnique({
-    where: {
-      id: reconcilePayload.payment.id,
-    },
+  const dbPayment = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.enforce_rls', '0', true)`;
+    return tx.payment.findUnique({
+      where: {
+        id: reconcilePayload.payment.id,
+      },
+    });
   });
 
   assert.ok(dbPayment, 'Plata MT940 nu a fost persistată în baza de date.');
@@ -652,19 +672,22 @@ test('import-file CAMT.053 + suggest + reconcile pentru factură client', async 
   assert.equal(reconcilePayload.invoice.status, 'PAID');
   assert.equal(Number(reconcilePayload.payment.amount), 357);
 
-  const [dbPayment, dbInvoice] = await Promise.all([
-    prisma.payment.findUnique({
-      where: {
-        id: reconcilePayload.payment.id,
-      },
-    }),
-    prisma.invoice.findUnique({
-      where: { id: invoiceFixture.id },
-      select: {
-        status: true,
-      },
-    }),
-  ]);
+  const [dbPayment, dbInvoice] = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT set_config('app.enforce_rls', '0', true)`;
+    return Promise.all([
+      tx.payment.findUnique({
+        where: {
+          id: reconcilePayload.payment.id,
+        },
+      }),
+      tx.invoice.findUnique({
+        where: { id: invoiceFixture.id },
+        select: {
+          status: true,
+        },
+      }),
+    ]);
+  });
 
   assert.ok(dbPayment, 'Plata CAMT.053 nu a fost persistată în baza de date.');
   assert.equal(Number(dbPayment?.amount ?? 0), 357);

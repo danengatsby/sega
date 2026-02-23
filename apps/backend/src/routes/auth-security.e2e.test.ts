@@ -27,6 +27,8 @@ let companyId: string | null = null;
 let userForRateLimit: FixtureUser | null = null;
 let chiefAccountant: FixtureUser | null = null;
 let adminWithMfa: FixtureUser | null = null;
+const selfRegisteredUserIds: string[] = [];
+const selfCreatedCompanyIds: string[] = [];
 
 async function startServer(): Promise<{ server: Server; baseUrl: string }> {
   const app = createApp();
@@ -110,6 +112,7 @@ before(async () => {
       },
     });
 
+    const chiefSecret = generateSecret();
     const chiefUser = await tx.user.create({
       data: {
         email: `chief-${RUN_ID}@sega.test`,
@@ -117,6 +120,8 @@ before(async () => {
         passwordHash,
         mustChangePassword: false,
         role: Role.CHIEF_ACCOUNTANT,
+        mfaEnabled: true,
+        mfaSecret: chiefSecret,
       },
     });
     await tx.userCompanyMembership.create({
@@ -151,7 +156,7 @@ before(async () => {
 
     return {
       rateUser: { ...rateUser, mfaSecret: null },
-      chiefUser: { ...chiefUser, mfaSecret: null },
+      chiefUser: { ...chiefUser, mfaSecret: chiefSecret },
       adminUser: { ...adminUser, mfaSecret: adminSecret },
     };
   });
@@ -169,7 +174,7 @@ after(async () => {
   const users = [userForRateLimit, chiefAccountant, adminWithMfa].filter(
     (user): user is FixtureUser => Boolean(user),
   );
-  const userIds = users.map((user) => user.id);
+  const userIds = [...users.map((user) => user.id), ...selfRegisteredUserIds];
 
   if (userIds.length > 0) {
     await prisma.refreshSession.deleteMany({
@@ -192,6 +197,16 @@ after(async () => {
       where: {
         id: {
           in: userIds,
+        },
+      },
+    });
+  }
+
+  if (selfCreatedCompanyIds.length > 0) {
+    await prisma.company.deleteMany({
+      where: {
+        id: {
+          in: selfCreatedCompanyIds,
         },
       },
     });
@@ -268,7 +283,7 @@ test('login pentru cont cu MFA activ necesită cod valid', async () => {
   assert.ok(cookieHeader.includes('sega_access_token='));
 });
 
-test('CHIEF_ACCOUNTANT fără MFA nu poate accesa rute protejate până la setup+verify', async () => {
+test('CHIEF_ACCOUNTANT are login obișnuit fără MFA obligatoriu', async () => {
   assert.ok(chiefAccountant, 'Fixture CHIEF_ACCOUNTANT lipsă');
 
   const loginResponse = await login(chiefAccountant.email);
@@ -283,48 +298,23 @@ test('CHIEF_ACCOUNTANT fără MFA nu poate accesa rute protejate până la setup
   });
   assert.equal(blockedResponse.status, 403);
   const blockedPayload = (await blockedResponse.json()) as { code?: string };
-  assert.equal(blockedPayload.code, 'MFA_SETUP_REQUIRED');
+  assert.equal(blockedPayload.code, 'COMPANY_SELECTION_REQUIRED');
 
-  const setupResponse = await fetch(`${baseUrl}/api/auth/mfa/setup`, {
-    method: 'POST',
-    headers: {
-      cookie: cookieHeader,
-    },
-  });
-  assert.equal(setupResponse.status, 200);
-  const setupPayload = (await setupResponse.json()) as { secret: string; required: boolean };
-  assert.equal(setupPayload.required, true);
-  assert.ok(setupPayload.secret.length > 0);
-
-  const badVerifyResponse = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
+  assert.ok(companyId, 'Compania fixture lipsește pentru selectarea contextului');
+  const switchCompanyResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
     method: 'POST',
     headers: {
       cookie: cookieHeader,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      code: '000000',
+      companyId,
+      makeDefault: true,
+      reason: 'auth-security-mfa-test-switch-company',
     }),
   });
-  assert.equal(badVerifyResponse.status, 401);
-  const badVerifyPayload = (await badVerifyResponse.json()) as { code?: string };
-  assert.equal(badVerifyPayload.code, 'MFA_INVALID_CODE');
-
-  const validCode = generateSync({ secret: setupPayload.secret });
-  const verifyResponse = await fetch(`${baseUrl}/api/auth/mfa/verify`, {
-    method: 'POST',
-    headers: {
-      cookie: cookieHeader,
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      code: validCode,
-    }),
-  });
-  assert.equal(verifyResponse.status, 200);
-  const verifyPayload = (await verifyResponse.json()) as { user: { mfaEnabled?: boolean } };
-  assert.equal(verifyPayload.user.mfaEnabled, true);
-  cookieHeader = extractCookieHeader(verifyResponse);
+  assert.equal(switchCompanyResponse.status, 200);
+  cookieHeader = extractCookieHeader(switchCompanyResponse);
   assert.ok(cookieHeader.includes('sega_access_token='));
 
   const allowedResponse = await fetch(`${baseUrl}/api/accounts`, {
@@ -333,4 +323,177 @@ test('CHIEF_ACCOUNTANT fără MFA nu poate accesa rute protejate până la setup
     },
   });
   assert.equal(allowedResponse.status, 200);
+});
+
+test('după login userul trebuie să selecteze explicit compania înainte de acces API', async () => {
+  assert.ok(userForRateLimit, 'Fixture user lipsă');
+  assert.ok(companyId, 'Compania fixture lipsește');
+
+  const loginResponse = await login(userForRateLimit.email);
+  assert.equal(loginResponse.status, 200);
+  const loginPayload = (await loginResponse.json()) as {
+    user: {
+      companyId: string | null;
+      companyOnboardingRequired?: boolean;
+      availableCompanies: Array<{ id: string }>;
+    };
+  };
+  assert.equal(loginPayload.user.companyId, null);
+  assert.equal(loginPayload.user.companyOnboardingRequired, true);
+  assert.ok(loginPayload.user.availableCompanies.some((company) => company.id === companyId));
+
+  let cookieHeader = extractCookieHeader(loginResponse);
+  assert.ok(cookieHeader.includes('sega_access_token='));
+
+  const blockedResponse = await fetch(`${baseUrl}/api/accounts`, {
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(blockedResponse.status, 403);
+  const blockedPayload = (await blockedResponse.json()) as { code?: string };
+  assert.equal(blockedPayload.code, 'COMPANY_SELECTION_REQUIRED');
+
+  const refreshResponse = await fetch(`${baseUrl}/api/auth/refresh`, {
+    method: 'POST',
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(refreshResponse.status, 200);
+  cookieHeader = extractCookieHeader(refreshResponse);
+  assert.ok(cookieHeader.includes('sega_access_token='));
+
+  const meAfterRefreshResponse = await fetch(`${baseUrl}/api/auth/me`, {
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(meAfterRefreshResponse.status, 200);
+  const meAfterRefreshPayload = (await meAfterRefreshResponse.json()) as {
+    user: {
+      companyId: string | null;
+      companyOnboardingRequired?: boolean;
+    };
+  };
+  assert.equal(meAfterRefreshPayload.user.companyId, null);
+  assert.equal(meAfterRefreshPayload.user.companyOnboardingRequired, true);
+
+  const blockedAfterRefreshResponse = await fetch(`${baseUrl}/api/accounts`, {
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(blockedAfterRefreshResponse.status, 403);
+  const blockedAfterRefreshPayload = (await blockedAfterRefreshResponse.json()) as { code?: string };
+  assert.equal(blockedAfterRefreshPayload.code, 'COMPANY_SELECTION_REQUIRED');
+
+  const switchCompanyResponse = await fetch(`${baseUrl}/api/auth/switch-company`, {
+    method: 'POST',
+    headers: {
+      cookie: cookieHeader,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      companyId,
+      makeDefault: true,
+      reason: 'auth-security-strict-company-selection',
+    }),
+  });
+  assert.equal(switchCompanyResponse.status, 200);
+  cookieHeader = extractCookieHeader(switchCompanyResponse);
+  assert.ok(cookieHeader.includes('sega_access_token='));
+
+  const allowedResponse = await fetch(`${baseUrl}/api/accounts`, {
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(allowedResponse.status, 200);
+});
+
+test('register + onboarding companie permite continuarea în aplicație', async () => {
+  const email = `self-register-${RUN_ID}@sega.test`;
+  const password = 'SelfRegister!Pass2026';
+
+  const registerResponse = await fetch(`${baseUrl}/api/auth/register`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      email,
+      name: 'Self Registered Accountant',
+      password,
+    }),
+  });
+  assert.equal(registerResponse.status, 201);
+  const registerPayload = (await registerResponse.json()) as {
+    user: {
+      id: string;
+      companyId: string | null;
+      companyOnboardingRequired: boolean;
+      availableCompanies: Array<unknown>;
+    };
+  };
+  assert.equal(registerPayload.user.companyOnboardingRequired, true);
+  assert.equal(registerPayload.user.companyId, null);
+  assert.equal(registerPayload.user.availableCompanies.length, 0);
+  selfRegisteredUserIds.push(registerPayload.user.id);
+
+  const cookieHeader = extractCookieHeader(registerResponse);
+  assert.ok(cookieHeader.includes('sega_access_token='));
+
+  const meResponse = await fetch(`${baseUrl}/api/auth/me`, {
+    headers: {
+      cookie: cookieHeader,
+    },
+  });
+  assert.equal(meResponse.status, 200);
+  const mePayload = (await meResponse.json()) as {
+    user: {
+      companyId: string | null;
+      companyOnboardingRequired: boolean;
+    };
+  };
+  assert.equal(mePayload.user.companyOnboardingRequired, true);
+  assert.equal(mePayload.user.companyId, null);
+
+  const companyCode = `SELF-${RUN_ID}`.slice(0, 30).toUpperCase();
+  const createCompanyResponse = await fetch(`${baseUrl}/api/auth/companies`, {
+    method: 'POST',
+    headers: {
+      cookie: cookieHeader,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      code: companyCode,
+      name: `Self Company ${RUN_ID}`,
+    }),
+  });
+  assert.equal(createCompanyResponse.status, 201);
+  const createCompanyPayload = (await createCompanyResponse.json()) as {
+    user: {
+      companyId: string | null;
+      companyCode: string | null;
+      companyOnboardingRequired: boolean;
+      availableCompanies: Array<{ id: string }>;
+    };
+  };
+  assert.equal(createCompanyPayload.user.companyOnboardingRequired, false);
+  assert.ok(createCompanyPayload.user.companyId);
+  assert.equal(createCompanyPayload.user.companyCode, companyCode);
+  assert.equal(createCompanyPayload.user.availableCompanies.length, 1);
+  if (createCompanyPayload.user.companyId) {
+    selfCreatedCompanyIds.push(createCompanyPayload.user.companyId);
+  }
+  const companyCookieHeader = extractCookieHeader(createCompanyResponse);
+  assert.ok(companyCookieHeader.includes('sega_access_token='));
+
+  const accountsResponse = await fetch(`${baseUrl}/api/accounts`, {
+    headers: {
+      cookie: companyCookieHeader,
+    },
+  });
+  assert.equal(accountsResponse.status, 200);
 });

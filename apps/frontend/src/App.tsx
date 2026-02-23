@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, ApiError, apiRequest, setApiCompanyContext } from './api';
 import { ROLE_LABEL, type ModuleKey } from './app/navigation';
+import { CompanyOnboardingScreen } from './components/auth/CompanyOnboardingScreen';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { MfaEnrollmentScreen } from './components/auth/MfaEnrollmentScreen';
 import { PasswordChangeScreen } from './components/auth/PasswordChangeScreen';
@@ -19,6 +20,7 @@ import { PurchasesPage } from './pages/PurchasesPage';
 import { RevisalPage } from './pages/RevisalPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { StocksPage } from './pages/StocksPage';
+import { AdminPage } from './pages/AdminPage';
 import type {
   Account,
   AgingReport,
@@ -69,10 +71,19 @@ interface MfaSetupPayload {
 }
 
 const MODULE_CACHE_TTL_MS = 30_000;
-const MFA_REQUIRED_ROLES = new Set<User['role']>(['ADMIN', 'CHIEF_ACCOUNTANT']);
+const MFA_REQUIRED_ROLES = new Set<User['role']>(['ADMIN']);
 
 function isMfaEnrollmentRequired(activeUser: User | null): boolean {
-  return Boolean(activeUser && MFA_REQUIRED_ROLES.has(activeUser.companyRole) && activeUser.mfaEnabled !== true);
+  if (!activeUser) {
+    return false;
+  }
+
+  const activeRole = activeUser.companyRole ?? activeUser.role;
+  return MFA_REQUIRED_ROLES.has(activeRole) && activeUser.mfaEnabled !== true;
+}
+
+function isCompanyOnboardingRequired(activeUser: User | null): boolean {
+  return Boolean(activeUser && (activeUser.companyOnboardingRequired === true || !activeUser.companyId));
 }
 
 function App() {
@@ -107,7 +118,14 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [anafInfo, setAnafInfo] = useState<string>('');
 
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [loginForm, setLoginForm] = useState({ email: '', password: '', mfaCode: '' });
+  const [registerForm, setRegisterForm] = useState({
+    name: '',
+    email: '',
+    password: '',
+    confirmPassword: '',
+  });
   const [loginRequiresMfaCode, setLoginRequiresMfaCode] = useState(false);
   const [mfaSetupPayload, setMfaSetupPayload] = useState<MfaSetupPayload | null>(null);
   const [mfaVerificationCode, setMfaVerificationCode] = useState('');
@@ -243,6 +261,10 @@ function App() {
   });
   const [paymentDialog, setPaymentDialog] = useState<PaymentDialogState | null>(null);
   const [paymentDialogError, setPaymentDialogError] = useState('');
+  const [companyOnboardingForm, setCompanyOnboardingForm] = useState({
+    code: '',
+    name: '',
+  });
   const moduleCacheRef = useRef<Partial<Record<ModuleKey, { key: string; loadedAt: number }>>>({});
 
   const { canRead, canAction, visibleMenuItems, visibleMenuKeys } = usePermissions(user);
@@ -546,6 +568,11 @@ function App() {
         return;
       }
 
+      if (targetModule === 'admin') {
+        markModuleLoaded(targetModule);
+        return;
+      }
+
       if (targetModule === 'accounts') {
         const accountData = await fetchIfAllowed(canRead.accounts, () => apiRequest<Account[]>('/accounts'), []);
         setAccounts(accountData);
@@ -726,7 +753,13 @@ function App() {
   }, [user]);
 
   useEffect(() => {
-    if (authInitialized && user && !user.mustChangePassword && !isMfaEnrollmentRequired(user)) {
+    if (
+      authInitialized &&
+      user &&
+      !user.mustChangePassword &&
+      !isMfaEnrollmentRequired(user) &&
+      !isCompanyOnboardingRequired(user)
+    ) {
       void loadModuleData(moduleKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -738,6 +771,21 @@ function App() {
       setModuleKey(fallbackModule);
     }
   }, [moduleKey, visibleMenuItems, visibleMenuKeys]);
+
+  function resetAuthForms(): void {
+    setLoginForm({
+      email: '',
+      password: '',
+      mfaCode: '',
+    });
+    setRegisterForm({
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    });
+    setLoginRequiresMfaCode(false);
+  }
 
   async function handleLogin(event: React.FormEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
@@ -758,6 +806,7 @@ function App() {
 
       setSession(response.user);
       setLoginRequiresMfaCode(false);
+      setAuthMode('login');
       setLoginForm((prev) => ({
         ...prev,
         password: '',
@@ -768,6 +817,54 @@ function App() {
         if (err.code === 'MFA_CODE_REQUIRED' || err.code === 'MFA_INVALID_CODE') {
           setLoginRequiresMfaCode(true);
         }
+        setError(err.message);
+      } else {
+        setError(`Nu mă pot conecta la API (${API_BASE_URL}). Verifică backend-ul.`);
+      }
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function handleRegister(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    setBusyKey('register');
+    setError('');
+    setApiCompanyContext(null);
+
+    if (registerForm.name.trim().length < 2) {
+      setError('Numele trebuie să aibă cel puțin 2 caractere.');
+      setBusyKey(null);
+      return;
+    }
+
+    if (registerForm.password.length < 12) {
+      setError('Parola trebuie să aibă cel puțin 12 caractere.');
+      setBusyKey(null);
+      return;
+    }
+
+    if (registerForm.password !== registerForm.confirmPassword) {
+      setError('Confirmarea parolei nu coincide.');
+      setBusyKey(null);
+      return;
+    }
+
+    try {
+      const response = await apiRequest<{ user: User }>('/auth/register', {
+        method: 'POST',
+        body: {
+          name: registerForm.name,
+          email: registerForm.email,
+          password: registerForm.password,
+        },
+      });
+
+      setSession(response.user);
+      setAuthMode('login');
+      resetAuthForms();
+    } catch (err) {
+      if (err instanceof ApiError) {
         setError(err.message);
       } else {
         setError(`Nu mă pot conecta la API (${API_BASE_URL}). Verifică backend-ul.`);
@@ -881,14 +978,14 @@ function App() {
     }
     setApiCompanyContext(null);
     invalidateAllModuleCache();
-    setLoginRequiresMfaCode(false);
     setMfaSetupPayload(null);
     setMfaVerificationCode('');
-    setLoginForm((prev) => ({
-      ...prev,
-      password: '',
-      mfaCode: '',
-    }));
+    setCompanyOnboardingForm({
+      code: '',
+      name: '',
+    });
+    setAuthMode('login');
+    resetAuthForms();
     clearSession();
   }
 
@@ -916,6 +1013,77 @@ function App() {
       setSession(response.user);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut schimba compania activă.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function selectCompanyDuringOnboarding(companyId: string): Promise<void> {
+    if (!companyId) {
+      setError('Selectează o firmă validă.');
+      return;
+    }
+
+    setBusyKey('onboarding-select-company');
+    setError('');
+    try {
+      const response = await apiRequest<{ user: User }>('/auth/switch-company', {
+        method: 'POST',
+        body: {
+          companyId,
+          makeDefault: true,
+        },
+      });
+      setSession(response.user);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Nu s-a putut selecta firma.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function createCompanyDuringOnboarding(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (!user) {
+      return;
+    }
+
+    const normalizedCode = companyOnboardingForm.code.trim().toUpperCase();
+    const normalizedName = companyOnboardingForm.name.trim();
+
+    if (normalizedCode.length < 2) {
+      setError('Codul firmei trebuie să aibă cel puțin 2 caractere.');
+      return;
+    }
+
+    if (!/^[A-Z0-9._-]+$/.test(normalizedCode)) {
+      setError('Codul firmei poate conține doar litere, cifre, punct, underscore și minus.');
+      return;
+    }
+
+    if (normalizedName.length < 2) {
+      setError('Denumirea firmei trebuie să aibă cel puțin 2 caractere.');
+      return;
+    }
+
+    setBusyKey('onboarding-create-company');
+    setError('');
+
+    try {
+      const response = await apiRequest<{ user: User }>('/auth/companies', {
+        method: 'POST',
+        body: {
+          code: normalizedCode,
+          name: normalizedName,
+        },
+      });
+      setSession(response.user);
+      setCompanyOnboardingForm({
+        code: '',
+        name: '',
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea firma.');
     } finally {
       setBusyKey(null);
     }
@@ -1948,16 +2116,38 @@ function App() {
   if (!user) {
     return (
       <LoginScreen
-        email={loginForm.email}
-        password={loginForm.password}
+        mode={authMode}
+        name={registerForm.name}
+        email={authMode === 'register' ? registerForm.email : loginForm.email}
+        password={authMode === 'register' ? registerForm.password : loginForm.password}
+        confirmPassword={registerForm.confirmPassword}
         mfaCode={loginForm.mfaCode}
         mfaRequired={loginRequiresMfaCode}
-        busy={busyKey === 'login'}
+        busy={busyKey === 'login' || busyKey === 'register'}
         error={error}
-        onEmailChange={(value) => setLoginForm((prev) => ({ ...prev, email: value }))}
-        onPasswordChange={(value) => setLoginForm((prev) => ({ ...prev, password: value }))}
+        onModeChange={(mode) => {
+          setAuthMode(mode);
+          setError('');
+          setLoginRequiresMfaCode(false);
+        }}
+        onNameChange={(value) => setRegisterForm((prev) => ({ ...prev, name: value }))}
+        onEmailChange={(value) => {
+          if (authMode === 'register') {
+            setRegisterForm((prev) => ({ ...prev, email: value }));
+            return;
+          }
+          setLoginForm((prev) => ({ ...prev, email: value }));
+        }}
+        onPasswordChange={(value) => {
+          if (authMode === 'register') {
+            setRegisterForm((prev) => ({ ...prev, password: value }));
+            return;
+          }
+          setLoginForm((prev) => ({ ...prev, password: value }));
+        }}
+        onConfirmPasswordChange={(value) => setRegisterForm((prev) => ({ ...prev, confirmPassword: value }))}
         onMfaCodeChange={(value) => setLoginForm((prev) => ({ ...prev, mfaCode: value }))}
-        onSubmit={handleLogin}
+        onSubmit={authMode === 'register' ? handleRegister : handleLogin}
       />
     );
   }
@@ -2004,6 +2194,26 @@ function App() {
     );
   }
 
+  if (isCompanyOnboardingRequired(user)) {
+    return (
+      <CompanyOnboardingScreen
+        userName={user.name}
+        availableCompanies={availableCompanies}
+        companyCode={companyOnboardingForm.code}
+        companyName={companyOnboardingForm.name}
+        busy={busyKey === 'onboarding-select-company' || busyKey === 'onboarding-create-company'}
+        error={error}
+        onCompanyCodeChange={(value) => setCompanyOnboardingForm((prev) => ({ ...prev, code: value }))}
+        onCompanyNameChange={(value) => setCompanyOnboardingForm((prev) => ({ ...prev, name: value }))}
+        onCreateCompany={createCompanyDuringOnboarding}
+        onSelectCompany={(companyId) => selectCompanyDuringOnboarding(companyId)}
+        onLogout={() => {
+          void handleLogout();
+        }}
+      />
+    );
+  }
+
   function renderModule() {
     if (!visibleMenuKeys.has(moduleKey)) {
       return (
@@ -2034,6 +2244,10 @@ function App() {
           fmtCurrency={fmtCurrency}
         />
       );
+    }
+
+    if (moduleKey === 'admin') {
+      return <AdminPage />;
     }
 
     if (moduleKey === 'accounts') {

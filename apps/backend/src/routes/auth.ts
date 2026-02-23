@@ -6,25 +6,31 @@ import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import type { PublicUser } from '../lib/auth-session.js';
-import { issueLoginSession, revokeRefreshSessionByToken, rotateRefreshSession } from '../lib/auth-session.js';
-import { ensureUserHasCompanyMembership, readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/company-access.js';
+import { issueLoginSession, revokeRefreshSessionByToken, revokeSessionByAccessToken, rotateRefreshSession } from '../lib/auth-session.js';
+import { readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/company-access.js';
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../lib/http-error.js';
 import type { Permission } from '../lib/rbac.js';
 import { buildMfaSetupPayload, generateTotpSecret, isMfaRequiredRole, verifyTotpCode } from '../lib/mfa.js';
 import { writeAudit } from '../lib/audit.js';
-import { authenticate, clearAuthCookies, getRefreshToken } from '../middleware/auth.js';
-import { resolveCompanyContext } from '../middleware/company.js';
+import { authenticate, clearAuthCookies, getAccessToken, getRefreshToken } from '../middleware/auth.js';
 
 const router = Router();
 let bootstrapTokenConsumed = false;
 const DEFAULT_BOOTSTRAP_COMPANY_CODE = 'default';
 const DEFAULT_BOOTSTRAP_COMPANY_NAME = 'Compania implicită';
+const companyCodePattern = /^[A-Za-z0-9._-]+$/;
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
   mfaCode: z.string().min(6).max(12).optional(),
+});
+
+const registerSchema = z.object({
+  email: z.string().email(),
+  name: z.string().min(2).max(160),
+  password: z.string().min(12).max(128),
 });
 
 const bootstrapSchema = z.object({
@@ -47,6 +53,51 @@ const switchCompanySchema = z.object({
 const mfaVerifySchema = z.object({
   code: z.string().min(6).max(12),
 });
+
+const companyCreateSchema = z.object({
+  code: z
+    .string()
+    .min(2)
+    .max(32)
+    .regex(companyCodePattern, 'Codul companiei poate conține doar litere, cifre, punct, underscore și minus.'),
+  name: z.string().min(2).max(180),
+  cui: z.string().max(64).optional().nullable(),
+  registrationNumber: z.string().max(64).optional().nullable(),
+  address: z.string().max(255).optional().nullable(),
+  city: z.string().max(80).optional().nullable(),
+  county: z.string().max(80).optional().nullable(),
+  country: z.string().max(80).optional().nullable(),
+  bankName: z.string().max(120).optional().nullable(),
+  iban: z.string().max(64).optional().nullable(),
+  email: z.string().max(160).optional().nullable(),
+  phone: z.string().max(40).optional().nullable(),
+  reason: z.string().max(256).optional(),
+});
+
+interface AuthCompanySummary {
+  id: string;
+  code: string;
+  name: string;
+  role: Role;
+  isDefault: boolean;
+}
+
+interface AuthenticatedUserPayload extends PublicUser {
+  companyId: string | null;
+  companyCode: string | null;
+  companyName: string | null;
+  companyRole: Role | null;
+  permissions: Permission[];
+  availableCompanies: AuthCompanySummary[];
+  companyOnboardingRequired: boolean;
+}
+
+type BootstrapPayload = z.infer<typeof bootstrapSchema>;
+
+interface BootstrapFailure {
+  statusCode: number;
+  message: string;
+}
 
 function tokensEqual(expected: string, provided: string): boolean {
   const expectedBuffer = Buffer.from(expected, 'utf8');
@@ -72,30 +123,68 @@ function readBootstrapToken(headerValue: string | string[] | undefined): string 
   return token.length > 0 ? token : null;
 }
 
+function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+function normalizeOptionalString(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeCompanyCode(code: string): string {
+  return code.trim().toUpperCase();
+}
+
+function isPrismaKnownError(error: unknown, code: string): boolean {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'code' in error &&
+      typeof (error as { code?: unknown }).code === 'string' &&
+      (error as { code: string }).code === code,
+  );
+}
+
 async function buildUserAuthContext(
   req: Request,
   publicUser: PublicUser,
   requestedCompanyIdOverride?: string | null,
-): Promise<PublicUser & {
-  companyId: string;
-  companyCode: string;
-  companyName: string;
-  companyRole: Role;
-  permissions: Permission[];
-  availableCompanies: Array<{
-    id: string;
-    code: string;
-    name: string;
-    role: Role;
-    isDefault: boolean;
-  }>;
-}> {
-  await ensureUserHasCompanyMembership(publicUser.id, publicUser.role);
+): Promise<AuthenticatedUserPayload> {
   const requestedCompanyId = requestedCompanyIdOverride ?? readRequestedCompanyId(req);
-  const access = await resolveUserCompanyAccessContext(publicUser.id, requestedCompanyId);
+  let access = await resolveUserCompanyAccessContext(publicUser.id, requestedCompanyId);
+  if (!access && requestedCompanyId) {
+    access = await resolveUserCompanyAccessContext(publicUser.id, null);
+  }
+
+  if (publicUser.companySelectionRequired) {
+    return {
+      ...publicUser,
+      companyId: null,
+      companyCode: null,
+      companyName: null,
+      companyRole: null,
+      permissions: [],
+      availableCompanies: access?.availableCompanies ?? [],
+      companyOnboardingRequired: true,
+    };
+  }
 
   if (!access) {
-    throw HttpError.forbidden('Nu ai nicio companie activă asociată utilizatorului.');
+    return {
+      ...publicUser,
+      companyId: null,
+      companyCode: null,
+      companyName: null,
+      companyRole: null,
+      permissions: [],
+      availableCompanies: [],
+      companyOnboardingRequired: true,
+    };
   }
 
   return {
@@ -106,6 +195,7 @@ async function buildUserAuthContext(
     companyRole: access.role,
     permissions: access.permissions,
     availableCompanies: access.availableCompanies,
+    companyOnboardingRequired: false,
   };
 }
 
@@ -121,6 +211,134 @@ async function revokeAllActiveRefreshSessions(userId: string): Promise<void> {
   });
 }
 
+function resolveBootstrapAdminDisabledMessage(): string | null {
+  if (env.NODE_ENV === 'production') {
+    return 'Bootstrap admin este dezactivat în producție.';
+  }
+
+  if (!env.BOOTSTRAP_ADMIN_ENABLED) {
+    return 'Bootstrap admin este dezactivat.';
+  }
+
+  return null;
+}
+
+function validateBootstrapAdminAccess(req: Request): BootstrapFailure | null {
+  const disabledMessage = resolveBootstrapAdminDisabledMessage();
+  if (disabledMessage) {
+    return {
+      statusCode: 403,
+      message: disabledMessage,
+    };
+  }
+
+  if (bootstrapTokenConsumed) {
+    return {
+      statusCode: 409,
+      message: 'Token-ul de bootstrap a fost deja folosit.',
+    };
+  }
+
+  const configuredBootstrapToken = env.BOOTSTRAP_ADMIN_TOKEN;
+  const providedBootstrapToken = readBootstrapToken(req.headers['x-bootstrap-token']);
+  if (!configuredBootstrapToken || !providedBootstrapToken || !tokensEqual(configuredBootstrapToken, providedBootstrapToken)) {
+    return {
+      statusCode: 401,
+      message: 'Token bootstrap invalid.',
+    };
+  }
+
+  return null;
+}
+
+function parseBootstrapPayload(body: unknown): BootstrapPayload | null {
+  const parsed = bootstrapSchema.safeParse(body);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
+
+async function createBootstrapAdminUser(req: Request, payload: BootstrapPayload): Promise<{
+  id: string;
+  email: string;
+  role: Role;
+  mustChangePassword: boolean;
+}> {
+  const user = await prisma.$transaction(async (tx) => {
+    const userCount = await tx.user.count();
+    if (userCount > 0) {
+      throw HttpError.conflict('Bootstrap dezactivat: există deja utilizatori.');
+    }
+
+    const passwordHash = await bcrypt.hash(payload.password, 12);
+    const createdUser = await tx.user.create({
+      data: {
+        email: normalizeEmail(payload.email),
+        name: payload.name,
+        passwordHash,
+        role: Role.ADMIN,
+        mustChangePassword: true,
+      },
+    });
+
+    const fallbackCompany =
+      (await tx.company.findFirst({
+        where: { isActive: true },
+        orderBy: [{ createdAt: 'asc' }],
+      })) ??
+      (await tx.company.upsert({
+        where: { code: DEFAULT_BOOTSTRAP_COMPANY_CODE },
+        update: {
+          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
+          isActive: true,
+        },
+        create: {
+          code: DEFAULT_BOOTSTRAP_COMPANY_CODE,
+          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
+          isActive: true,
+        },
+      }));
+
+    await tx.userCompanyMembership.create({
+      data: {
+        userId: createdUser.id,
+        companyId: fallbackCompany.id,
+        role: Role.ADMIN,
+        isDefault: true,
+      },
+    });
+
+    await writeAudit(
+      req,
+      {
+        tableName: 'users',
+        recordId: createdUser.id,
+        action: 'CREATE',
+        reason: 'bootstrap-admin',
+        afterData: {
+          email: createdUser.email,
+          name: createdUser.name,
+          role: createdUser.role,
+          mustChangePassword: createdUser.mustChangePassword,
+        },
+        userId: createdUser.id,
+      },
+      tx,
+    );
+
+    return createdUser;
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  };
+}
+
 router.post('/login', async (req, res) => {
   const parsed = loginSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -128,7 +346,7 @@ router.post('/login', async (req, res) => {
     return;
   }
 
-  const user = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const user = await prisma.user.findUnique({ where: { email: normalizeEmail(parsed.data.email) } });
   if (!user) {
     res.status(401).json({ message: 'Email sau parolă incorectă.' });
     return;
@@ -140,7 +358,7 @@ router.post('/login', async (req, res) => {
     return;
   }
 
-  if (user.mfaEnabled) {
+  if (isMfaRequiredRole(user.role) && user.mfaEnabled) {
     if (!user.mfaSecret) {
       res.status(409).json({
         message: 'Configurația MFA este invalidă. Reconfigurează MFA din profil.',
@@ -167,12 +385,61 @@ router.post('/login', async (req, res) => {
     }
   }
 
-  const publicUser = await issueLoginSession(user, req, res);
+  const publicUser = await issueLoginSession(user, req, res, { companySelectionRequired: true });
   const userWithContext = await buildUserAuthContext(req, publicUser);
   res.json({ user: userWithContext });
 });
 
-router.post('/mfa/setup', authenticate, resolveCompanyContext, async (req, res) => {
+router.post('/register', async (req, res, next) => {
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: 'Date invalide pentru crearea contului.' });
+    return;
+  }
+
+  try {
+    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
+    const createdUser = await prisma.user.create({
+      data: {
+        email: normalizeEmail(parsed.data.email),
+        name: parsed.data.name.trim(),
+        passwordHash,
+        role: Role.ACCOUNTANT,
+        mustChangePassword: false,
+        mfaEnabled: false,
+        mfaSecret: null,
+        mfaPendingSecret: null,
+      },
+    });
+
+    await writeAudit(req, {
+      tableName: 'users',
+      recordId: createdUser.id,
+      action: 'REGISTER',
+      reason: 'self-signup',
+      userId: createdUser.id,
+      userEmail: createdUser.email,
+      userRole: createdUser.role,
+      afterData: {
+        email: createdUser.email,
+        name: createdUser.name,
+        role: createdUser.role,
+      },
+    });
+
+    const publicUser = await issueLoginSession(createdUser, req, res, { companySelectionRequired: true });
+    const userWithContext = await buildUserAuthContext(req, publicUser);
+    res.status(201).json({ user: userWithContext });
+  } catch (error) {
+    if (isPrismaKnownError(error, 'P2002')) {
+      res.status(409).json({ message: 'Există deja un cont cu acest email.' });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post('/mfa/setup', authenticate, async (req, res) => {
   const secret = generateTotpSecret();
   const updatedUser = await prisma.user.update({
     where: { id: req.user!.id },
@@ -205,7 +472,7 @@ router.post('/mfa/setup', authenticate, resolveCompanyContext, async (req, res) 
   });
 });
 
-router.post('/mfa/verify', authenticate, resolveCompanyContext, async (req, res) => {
+router.post('/mfa/verify', authenticate, async (req, res) => {
   const parsed = mfaVerifySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: 'Codul MFA este invalid.' });
@@ -258,12 +525,14 @@ router.post('/mfa/verify', authenticate, resolveCompanyContext, async (req, res)
   });
 
   await revokeAllActiveRefreshSessions(updatedUser.id);
-  const publicUser = await issueLoginSession(updatedUser, req, res);
+  const publicUser = await issueLoginSession(updatedUser, req, res, {
+    companySelectionRequired: req.user?.companySelectionRequired === true,
+  });
   const userWithContext = await buildUserAuthContext(req, publicUser);
   res.json({ user: userWithContext });
 });
 
-router.post('/mfa/disable', authenticate, resolveCompanyContext, async (req, res) => {
+router.post('/mfa/disable', authenticate, async (req, res) => {
   const activeRole = req.user!.companyRole ?? req.user!.role;
   if (isMfaRequiredRole(activeRole)) {
     res.status(403).json({
@@ -325,9 +594,127 @@ router.post('/mfa/disable', authenticate, resolveCompanyContext, async (req, res
   });
 
   await revokeAllActiveRefreshSessions(updatedUser.id);
-  const publicUser = await issueLoginSession(updatedUser, req, res);
+  const publicUser = await issueLoginSession(updatedUser, req, res, {
+    companySelectionRequired: req.user?.companySelectionRequired === true,
+  });
   const userWithContext = await buildUserAuthContext(req, publicUser);
   res.json({ user: userWithContext });
+});
+
+router.post('/companies', authenticate, async (req, res, next) => {
+  const parsed = companyCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ message: 'Date invalide pentru crearea companiei.' });
+    return;
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: req.user!.id },
+  });
+
+  if (!user) {
+    clearAuthCookies(res);
+    res.status(404).json({ message: 'Utilizator inexistent.' });
+    return;
+  }
+
+  try {
+    const createdCompany = await prisma.$transaction(async (tx) => {
+      const company = await tx.company.create({
+        data: {
+          code: normalizeCompanyCode(parsed.data.code),
+          name: parsed.data.name.trim(),
+          cui: normalizeOptionalString(parsed.data.cui),
+          registrationNumber: normalizeOptionalString(parsed.data.registrationNumber),
+          address: normalizeOptionalString(parsed.data.address),
+          city: normalizeOptionalString(parsed.data.city),
+          county: normalizeOptionalString(parsed.data.county),
+          country: normalizeOptionalString(parsed.data.country) ?? 'RO',
+          bankName: normalizeOptionalString(parsed.data.bankName),
+          iban: normalizeOptionalString(parsed.data.iban),
+          email: normalizeOptionalString(parsed.data.email),
+          phone: normalizeOptionalString(parsed.data.phone),
+          isActive: true,
+        },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
+      });
+
+      await tx.userCompanyMembership.updateMany({
+        where: {
+          userId: user.id,
+          isDefault: true,
+        },
+        data: {
+          isDefault: false,
+        },
+      });
+
+      const membership = await tx.userCompanyMembership.create({
+        data: {
+          userId: user.id,
+          companyId: company.id,
+          role: user.role,
+          isDefault: true,
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      await writeAudit(
+        req,
+        {
+          tableName: 'companies',
+          recordId: company.id,
+          action: 'CREATE',
+          reason: parsed.data.reason ?? 'self-company-create',
+          companyId: company.id,
+          afterData: {
+            id: company.id,
+            code: company.code,
+            name: company.name,
+          },
+        },
+        tx,
+      );
+
+      await writeAudit(
+        req,
+        {
+          tableName: 'user_company_memberships',
+          recordId: membership.id,
+          action: 'CREATE',
+          reason: parsed.data.reason ?? 'self-company-create',
+          companyId: company.id,
+          afterData: {
+            userId: user.id,
+            companyId: company.id,
+            role: user.role,
+            isDefault: true,
+          },
+        },
+        tx,
+      );
+
+      return company;
+    });
+
+    const publicUser = await issueLoginSession(user, req, res, {
+      companySelectionRequired: false,
+    });
+    const userWithContext = await buildUserAuthContext(req, publicUser, createdCompany.id);
+    res.status(201).json({ user: userWithContext });
+  } catch (error) {
+    if (isPrismaKnownError(error, 'P2002')) {
+      res.status(409).json({ message: 'Codul companiei există deja.' });
+      return;
+    }
+    next(error);
+  }
 });
 
 router.post('/switch-company', authenticate, async (req, res) => {
@@ -345,14 +732,6 @@ router.post('/switch-company', authenticate, async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      role: true,
-      mustChangePassword: true,
-      mfaEnabled: true,
-    },
   });
 
   if (!user) {
@@ -361,7 +740,6 @@ router.post('/switch-company', authenticate, async (req, res) => {
     return;
   }
 
-  await ensureUserHasCompanyMembership(user.id, user.role);
   const access = await resolveUserCompanyAccessContext(user.id, requestedCompanyId);
   if (!access || access.companyId !== requestedCompanyId) {
     res.status(403).json({ message: 'Nu ai acces la compania selectată.' });
@@ -435,116 +813,34 @@ router.post('/switch-company', authenticate, async (req, res) => {
     });
   }
 
-  const userWithContext = await buildUserAuthContext(req, user, requestedCompanyId);
+  const publicUser = await issueLoginSession(user, req, res, {
+    companySelectionRequired: false,
+  });
+  const userWithContext = await buildUserAuthContext(req, publicUser, requestedCompanyId);
   res.json({ user: userWithContext });
 });
 
 router.post('/bootstrap-admin', async (req, res) => {
-  if (env.NODE_ENV === 'production') {
-    res.status(403).json({ message: 'Bootstrap admin este dezactivat în producție.' });
+  const accessError = validateBootstrapAdminAccess(req);
+  if (accessError) {
+    res.status(accessError.statusCode).json({ message: accessError.message });
     return;
   }
 
-  if (!env.BOOTSTRAP_ADMIN_ENABLED) {
-    res.status(403).json({ message: 'Bootstrap admin este dezactivat.' });
-    return;
-  }
-
-  if (bootstrapTokenConsumed) {
-    res.status(409).json({ message: 'Token-ul de bootstrap a fost deja folosit.' });
-    return;
-  }
-
-  const configuredBootstrapToken = env.BOOTSTRAP_ADMIN_TOKEN;
-  const providedBootstrapToken = readBootstrapToken(req.headers['x-bootstrap-token']);
-
-  if (!configuredBootstrapToken || !providedBootstrapToken || !tokensEqual(configuredBootstrapToken, providedBootstrapToken)) {
-    res.status(401).json({ message: 'Token bootstrap invalid.' });
-    return;
-  }
-
-  const parsed = bootstrapSchema.safeParse(req.body);
-  if (!parsed.success) {
+  const payload = parseBootstrapPayload(req.body);
+  if (!payload) {
     res.status(400).json({ message: 'Date invalide.' });
     return;
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    const userCount = await tx.user.count();
-    if (userCount > 0) {
-      throw HttpError.conflict('Bootstrap dezactivat: există deja utilizatori.');
-    }
-
-    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-    const createdUser = await tx.user.create({
-      data: {
-        email: parsed.data.email,
-        name: parsed.data.name,
-        passwordHash,
-        role: Role.ADMIN,
-        mustChangePassword: true,
-      },
-    });
-
-    const fallbackCompany =
-      (await tx.company.findFirst({
-        where: { isActive: true },
-        orderBy: [{ createdAt: 'asc' }],
-      })) ??
-      (await tx.company.upsert({
-        where: { code: DEFAULT_BOOTSTRAP_COMPANY_CODE },
-        update: {
-          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
-          isActive: true,
-        },
-        create: {
-          code: DEFAULT_BOOTSTRAP_COMPANY_CODE,
-          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
-          isActive: true,
-        },
-      }));
-
-    await tx.userCompanyMembership.create({
-      data: {
-        userId: createdUser.id,
-        companyId: fallbackCompany.id,
-        role: Role.ADMIN,
-        isDefault: true,
-      },
-    });
-
-    await writeAudit(
-      req,
-      {
-        tableName: 'users',
-        recordId: createdUser.id,
-        action: 'CREATE',
-        reason: 'bootstrap-admin',
-        afterData: {
-          email: createdUser.email,
-          name: createdUser.name,
-          role: createdUser.role,
-          mustChangePassword: createdUser.mustChangePassword,
-        },
-        userId: createdUser.id,
-      },
-      tx,
-    );
-
-    return createdUser;
-  });
+  const user = await createBootstrapAdminUser(req, payload);
 
   bootstrapTokenConsumed = true;
 
-  res.status(201).json({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    mustChangePassword: user.mustChangePassword,
-  });
+  res.status(201).json(user);
 });
 
-router.post('/change-password', authenticate, resolveCompanyContext, async (req, res) => {
+router.post('/change-password', authenticate, async (req, res) => {
   const parsed = changePasswordSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: 'Date invalide pentru schimbare parolă.' });
@@ -590,7 +886,9 @@ router.post('/change-password', authenticate, resolveCompanyContext, async (req,
 
   await revokeAllActiveRefreshSessions(updatedUser.id);
 
-  const publicUser = await issueLoginSession(updatedUser, req, res);
+  const publicUser = await issueLoginSession(updatedUser, req, res, {
+    companySelectionRequired: req.user?.companySelectionRequired === true,
+  });
   const userWithContext = await buildUserAuthContext(req, publicUser);
   res.json({ user: userWithContext });
 });
@@ -614,7 +912,7 @@ router.post('/refresh', async (req, res) => {
   res.json({ user: userWithContext });
 });
 
-router.get('/me', authenticate, resolveCompanyContext, async (req, res) => {
+router.get('/me', authenticate, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user!.id },
     select: {
@@ -633,20 +931,19 @@ router.get('/me', authenticate, resolveCompanyContext, async (req, res) => {
     return;
   }
 
-  res.json({
-    user: {
-      ...user,
-      companyId: req.user!.companyId,
-      companyCode: req.user!.companyCode,
-      companyName: req.user!.companyName,
-      companyRole: req.user!.companyRole,
-      permissions: req.user!.permissions ?? [],
-      availableCompanies: req.user!.availableCompanies ?? [],
-    },
+  const userWithContext = await buildUserAuthContext(req, {
+    ...user,
+    companySelectionRequired: req.user?.companySelectionRequired === true,
   });
+  res.json({ user: userWithContext });
 });
 
 router.post('/logout', async (req, res) => {
+  const accessToken = getAccessToken(req);
+  if (accessToken) {
+    await revokeSessionByAccessToken(accessToken);
+  }
+
   const refreshToken = getRefreshToken(req);
   if (refreshToken) {
     await revokeRefreshSessionByToken(refreshToken);

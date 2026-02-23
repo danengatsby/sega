@@ -427,6 +427,17 @@ async function main(): Promise<void> {
   });
   assert.equal(loginResponse.status, 200, `Login a eșuat (${loginResponse.status})`);
 
+  const switchCompanyResponse = await postJson('/api/auth/switch-company', {
+    companyId: company.id,
+    makeDefault: true,
+    reason: 'smoke-open-banking-initial-company-selection',
+  });
+  assert.equal(
+    switchCompanyResponse.status,
+    200,
+    `Selectarea companiei active a eșuat (${switchCompanyResponse.status})`,
+  );
+
   const createConnectionResponse = await postJson('/api/open-banking/connections', {
     bankCode: 'BCR',
     accountCode: '5121',

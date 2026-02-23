@@ -13,6 +13,7 @@ declare global {
         name: string;
         mustChangePassword: boolean;
         mfaEnabled: boolean;
+        companySelectionRequired?: boolean;
         companyId?: string;
         companyCode?: string;
         companyName?: string;

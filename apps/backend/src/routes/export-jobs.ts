@@ -48,6 +48,7 @@ const jobSelect = {
   errorMessage: true,
   resultMimeType: true,
   resultFilename: true,
+  resultSizeBytes: true,
   createdAt: true,
   startedAt: true,
   finishedAt: true,
@@ -185,7 +186,9 @@ router.get('/:id/download', requirePermissions(PERMISSIONS.EXPORT_JOBS_READ), as
     select: {
       id: true,
       status: true,
-      resultData: true,
+      resultStorageUrl: true,
+      resultSignedUrl: true,
+      resultSignedUrlExpiresAt: true,
       resultFilename: true,
       resultMimeType: true,
     },
@@ -195,13 +198,25 @@ router.get('/:id/download', requirePermissions(PERMISSIONS.EXPORT_JOBS_READ), as
     throw HttpError.notFound('Job-ul de export nu există.');
   }
 
-  if (job.status !== ExportJobStatus.DONE || !job.resultData) {
+  if (job.status !== ExportJobStatus.DONE) {
     throw HttpError.conflict('Rezultatul job-ului nu este încă disponibil pentru descărcare.');
   }
 
-  res.setHeader('Content-Type', job.resultMimeType ?? 'application/octet-stream');
-  res.setHeader('Content-Disposition', `attachment; filename="${job.resultFilename ?? `${job.id}.bin`}"`);
-  res.send(job.resultData);
+  const signedUrlExpired =
+    job.resultSignedUrlExpiresAt !== null &&
+    job.resultSignedUrlExpiresAt.getTime() <= Date.now() + 30_000;
+
+  if (job.resultSignedUrl && !signedUrlExpired) {
+    res.setHeader('Cache-Control', 'no-store');
+    res.redirect(302, job.resultSignedUrl);
+    return;
+  }
+
+  if (job.resultStorageUrl) {
+    throw HttpError.conflict('URL-ul de descărcare a expirat. Regenerarea semnăturii va fi disponibilă într-o actualizare următoare.');
+  }
+
+  throw HttpError.conflict('Rezultatul exportului nu este disponibil pentru descărcare în acest mediu.');
 });
 
 export default router;

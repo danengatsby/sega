@@ -4,9 +4,6 @@ import { prisma } from './prisma.js';
 import type { Permission } from './rbac.js';
 import { permissionsForRole } from './rbac.js';
 
-const DEFAULT_COMPANY_CODE = 'default';
-const DEFAULT_COMPANY_NAME = 'Compania implicită';
-
 export interface AvailableCompany {
   id: string;
   code: string;
@@ -41,64 +38,6 @@ export function readRequestedCompanyId(req: Request): string | null {
   const queryCompanyId = Array.isArray(queryValue) ? queryValue[0] : queryValue;
 
   return normalizeCompanyId(headerCompanyId ?? (typeof queryCompanyId === 'string' ? queryCompanyId : null));
-}
-
-async function ensureFallbackCompany() {
-  const existingCompany = await prisma.company.findFirst({
-    where: {
-      isActive: true,
-    },
-    orderBy: [{ createdAt: 'asc' }],
-  });
-
-  if (existingCompany) {
-    return existingCompany;
-  }
-
-  return prisma.company.upsert({
-    where: { code: DEFAULT_COMPANY_CODE },
-    update: {
-      isActive: true,
-      name: DEFAULT_COMPANY_NAME,
-    },
-    create: {
-      code: DEFAULT_COMPANY_CODE,
-      name: DEFAULT_COMPANY_NAME,
-      isActive: true,
-    },
-  });
-}
-
-export async function ensureUserHasCompanyMembership(userId: string, fallbackRole: Role): Promise<void> {
-  const existingMembership = await prisma.userCompanyMembership.findFirst({
-    where: { userId },
-    select: { id: true },
-  });
-
-  if (existingMembership) {
-    return;
-  }
-
-  const fallbackCompany = await ensureFallbackCompany();
-
-  await prisma.userCompanyMembership.upsert({
-    where: {
-      userId_companyId: {
-        userId,
-        companyId: fallbackCompany.id,
-      },
-    },
-    update: {
-      role: fallbackRole,
-      isDefault: true,
-    },
-    create: {
-      userId,
-      companyId: fallbackCompany.id,
-      role: fallbackRole,
-      isDefault: true,
-    },
-  });
 }
 
 export async function resolveUserCompanyAccessContext(
@@ -154,4 +93,3 @@ export async function resolveUserCompanyAccessContext(
     availableCompanies,
   };
 }
-

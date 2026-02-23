@@ -4,6 +4,7 @@ import type { CookieOptions } from 'express';
 import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
+import { isSessionIdBlacklisted } from '../lib/auth-token-blacklist.js';
 import { isMfaRequiredRole } from '../lib/mfa.js';
 import type { Permission } from '../lib/rbac.js';
 
@@ -14,24 +15,50 @@ interface TokenUser {
   name: string;
   mustChangePassword: boolean;
   mfaEnabled: boolean;
+  companySelectionRequired?: boolean;
 }
 
-export interface AccessTokenPayload extends TokenUser {
+interface AccessTokenClaims extends TokenUser {
   typ: 'access';
   sid: string;
 }
 
-export interface RefreshTokenPayload {
+interface RefreshTokenClaims {
   typ: 'refresh';
   sub: string;
   sid: string;
+  companySelectionRequired?: boolean;
+}
+
+export interface AccessTokenPayload extends AccessTokenClaims {
+  exp: number;
+  iat?: number;
+}
+
+export interface RefreshTokenPayload extends RefreshTokenClaims {
+  exp: number;
+  iat?: number;
 }
 
 export const ACCESS_COOKIE_NAME = 'sega_access_token';
 export const REFRESH_COOKIE_NAME = 'sega_refresh_token';
 
 const ACCESS_TOKEN_TTL_MS = env.JWT_ACCESS_TTL_MINUTES * 60 * 1000;
-const REFRESH_TOKEN_TTL_MS = env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL_HOURS = (() => {
+  const configured = (env as Record<string, unknown>).JWT_REFRESH_TTL_HOURS;
+  const legacyRefreshTtlDays = typeof env.JWT_REFRESH_TTL_DAYS === 'number' ? env.JWT_REFRESH_TTL_DAYS : 7;
+  if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
+    return configured;
+  }
+  if (typeof configured === 'string') {
+    const parsed = Number(configured);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return legacyRefreshTtlDays * 24;
+})();
+const REFRESH_TOKEN_TTL_MS = REFRESH_TOKEN_TTL_HOURS * 60 * 60 * 1000;
 
 interface RsaKeyPair {
   privateKey: string;
@@ -141,7 +168,7 @@ export function signAccessToken(payload: TokenUser & { sid: string }): string {
     {
       ...payload,
       typ: 'access',
-    } satisfies AccessTokenPayload,
+    } satisfies AccessTokenClaims,
     ACCESS_RSA_KEYS.privateKey,
     {
       algorithm: 'RS256',
@@ -150,17 +177,18 @@ export function signAccessToken(payload: TokenUser & { sid: string }): string {
   );
 }
 
-export function signRefreshToken(payload: { userId: string; sid: string }): string {
+export function signRefreshToken(payload: { userId: string; sid: string; companySelectionRequired?: boolean }): string {
   return jwt.sign(
     {
       typ: 'refresh',
       sub: payload.userId,
       sid: payload.sid,
-    } satisfies RefreshTokenPayload,
+      companySelectionRequired: payload.companySelectionRequired === true,
+    } satisfies RefreshTokenClaims,
     REFRESH_RSA_KEYS.privateKey,
     {
       algorithm: 'RS256',
-      expiresIn: `${env.JWT_REFRESH_TTL_DAYS}d`,
+      expiresIn: `${REFRESH_TOKEN_TTL_HOURS}h`,
     },
   );
 }
@@ -169,7 +197,7 @@ export function verifyAccessToken(token: string): AccessTokenPayload {
   const payload = jwt.verify(token, ACCESS_RSA_KEYS.publicKey, {
     algorithms: ['RS256'],
   }) as Partial<AccessTokenPayload>;
-  if (payload.typ !== 'access' || !payload.id || !payload.sid) {
+  if (payload.typ !== 'access' || !payload.id || !payload.sid || typeof payload.exp !== 'number') {
     throw new Error('Invalid access token payload');
   }
   return payload as AccessTokenPayload;
@@ -179,10 +207,13 @@ export function verifyRefreshToken(token: string): RefreshTokenPayload {
   const payload = jwt.verify(token, REFRESH_RSA_KEYS.publicKey, {
     algorithms: ['RS256'],
   }) as Partial<RefreshTokenPayload>;
-  if (payload.typ !== 'refresh' || !payload.sub || !payload.sid) {
+  if (payload.typ !== 'refresh' || !payload.sub || !payload.sid || typeof payload.exp !== 'number') {
     throw new Error('Invalid refresh token payload');
   }
-  return payload as RefreshTokenPayload;
+  return {
+    ...(payload as RefreshTokenPayload),
+    companySelectionRequired: payload.companySelectionRequired === true,
+  };
 }
 
 export function getAccessCookieOptions(): CookieOptions {
@@ -216,7 +247,7 @@ export function clearAuthCookies(res: Response): void {
   });
 }
 
-export function authenticate(req: Request, res: Response, next: NextFunction): void {
+export async function authenticate(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = getAccessToken(req);
   if (!token) {
     res.status(401).json({ message: 'Token lipsă.' });
@@ -225,6 +256,14 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
 
   try {
     const payload = verifyAccessToken(token);
+    if (await isSessionIdBlacklisted(payload.sid)) {
+      res.status(401).json({
+        message: 'Token invalid sau revocat.',
+        code: 'TOKEN_REVOKED',
+      });
+      return;
+    }
+
     req.user = {
       id: String(payload.id),
       email: String(payload.email),
@@ -233,6 +272,7 @@ export function authenticate(req: Request, res: Response, next: NextFunction): v
       name: String(payload.name),
       mustChangePassword: payload.mustChangePassword !== false,
       mfaEnabled: payload.mfaEnabled === true,
+      companySelectionRequired: payload.companySelectionRequired === true,
     };
     next();
   } catch {
@@ -268,6 +308,23 @@ export function enforceMfaEnrollment(req: Request, res: Response, next: NextFunc
     res.status(403).json({
       message: 'Configurarea MFA (TOTP) este obligatorie pentru rolul curent.',
       code: 'MFA_SETUP_REQUIRED',
+    });
+    return;
+  }
+
+  next();
+}
+
+export function enforceCompanySelection(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ message: 'Neautentificat.' });
+    return;
+  }
+
+  if (req.user.companySelectionRequired) {
+    res.status(403).json({
+      message: 'Selectează explicit compania activă înainte de a continua.',
+      code: 'COMPANY_SELECTION_REQUIRED',
     });
     return;
   }

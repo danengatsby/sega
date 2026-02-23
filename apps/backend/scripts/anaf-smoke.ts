@@ -5,6 +5,10 @@ const apiBase = (process.env.ANAF_SMOKE_BASE_URL ?? 'http://localhost:4000').rep
 const email = process.env.ANAF_SMOKE_EMAIL ?? process.env.ADMIN_EMAIL ?? 'admin@sega.local';
 const password = process.env.ANAF_SMOKE_PASSWORD ?? process.env.ADMIN_PASSWORD ?? '';
 const bootstrapToken = process.env.ANAF_SMOKE_BOOTSTRAP_TOKEN ?? process.env.BOOTSTRAP_ADMIN_TOKEN ?? '';
+const preferredCompanyIdFromEnv =
+  process.env.ANAF_SMOKE_COMPANY_ID?.trim() ||
+  process.env.KPI_REPORT_COMPANY_ID?.trim() ||
+  null;
 let activeCompanyId: string | null = null;
 let mfaBootstrapped = false;
 const cookieJar = new Map<string, string>();
@@ -113,12 +117,96 @@ interface AuthPayload {
   user?: {
     mustChangePassword?: boolean;
     companyId?: string;
+    companySelectionRequired?: boolean;
+    companyOnboardingRequired?: boolean;
     mfaEnabled?: boolean;
+    availableCompanies?: Array<{
+      id: string;
+      isDefault?: boolean;
+    }>;
   };
 }
 
 interface MfaSetupPayload {
   secret?: string;
+}
+
+function selectCompanyIdFromPayload(payload: AuthPayload | null | undefined): string | null {
+  const user = payload?.user;
+  if (!user) {
+    return null;
+  }
+
+  const currentCompanyId = user.companyId?.trim();
+  if (currentCompanyId) {
+    return currentCompanyId;
+  }
+
+  const availableCompanies = Array.isArray(user.availableCompanies) ? user.availableCompanies : [];
+  if (availableCompanies.length === 0) {
+    return null;
+  }
+
+  if (preferredCompanyIdFromEnv) {
+    const preferredCompany = availableCompanies.find((company) => company.id === preferredCompanyIdFromEnv);
+    if (preferredCompany?.id) {
+      return preferredCompany.id;
+    }
+  }
+
+  const defaultCompany = availableCompanies.find((company) => company.isDefault);
+  if (defaultCompany?.id) {
+    return defaultCompany.id;
+  }
+
+  return availableCompanies[0]?.id ?? null;
+}
+
+async function ensureCompanySelected(payload?: AuthPayload): Promise<void> {
+  const needsSelection =
+    payload?.user?.companySelectionRequired === true ||
+    activeCompanyId === null;
+
+  if (!needsSelection) {
+    return;
+  }
+
+  let companyIdToSelect = selectCompanyIdFromPayload(payload);
+  if (!companyIdToSelect && preferredCompanyIdFromEnv) {
+    companyIdToSelect = preferredCompanyIdFromEnv;
+  }
+
+  if (!companyIdToSelect) {
+    const meResponse = await request('/api/auth/me');
+    if (!meResponse.ok) {
+      const body = await meResponse.text();
+      throw new Error(`Nu pot determina compania activă (GET /api/auth/me HTTP ${meResponse.status}). Body: ${body.slice(0, 400)}`);
+    }
+    const mePayload = await parseJson<AuthPayload>(meResponse);
+    updateCompanyContext(mePayload);
+    companyIdToSelect = selectCompanyIdFromPayload(mePayload);
+  }
+
+  if (!companyIdToSelect) {
+    if (payload?.user?.companyOnboardingRequired === true) {
+      throw new Error('Contul nu are companii disponibile. Creează o companie înainte de rularea ANAF smoke.');
+    }
+    throw new Error('Nu am putut determina compania pentru selecția inițială post-login.');
+  }
+
+  const switchResponse = await postJson('/api/auth/switch-company', {
+    companyId: companyIdToSelect,
+    makeDefault: true,
+    reason: 'anaf-smoke-initial-company-selection',
+  });
+
+  if (!switchResponse.ok) {
+    const body = await switchResponse.text();
+    throw new Error(`Selectarea companiei active a eșuat. HTTP ${switchResponse.status}. Body: ${body.slice(0, 400)}`);
+  }
+
+  const switchPayload = await parseJson<AuthPayload>(switchResponse);
+  updateCompanyContext(switchPayload);
 }
 
 async function loginOrBootstrap(): Promise<void> {
@@ -179,6 +267,7 @@ async function loginOrBootstrap(): Promise<void> {
 
   const loginData = await parseJson<AuthPayload>(finalLoginResponse);
   updateCompanyContext(loginData);
+  await ensureCompanySelected(loginData);
 
   if (!loginData.user?.mustChangePassword) {
     return;
@@ -202,6 +291,7 @@ async function loginOrBootstrap(): Promise<void> {
 
   const changedPayload = await parseJson<AuthPayload>(changePasswordResponse);
   updateCompanyContext(changedPayload);
+  await ensureCompanySelected(changedPayload);
   currentPassword = newPassword;
   if (changedPayload.user?.mustChangePassword === true) {
     const reloginResponse = await postJson('/api/auth/login', {
@@ -211,6 +301,7 @@ async function loginOrBootstrap(): Promise<void> {
     assert(reloginResponse.ok, `Relogin dupa schimbare parola a esuat. HTTP ${reloginResponse.status}`);
     const reloginPayload = await parseJson<AuthPayload>(reloginResponse);
     updateCompanyContext(reloginPayload);
+    await ensureCompanySelected(reloginPayload);
   }
 }
 
@@ -237,6 +328,7 @@ async function ensureMfaEnrollment(): Promise<void> {
 
   const verifyPayload = await parseJson<AuthPayload>(verifyResponse);
   updateCompanyContext(verifyPayload);
+  await ensureCompanySelected(verifyPayload);
   mfaBootstrapped = true;
   console.log('[INFO] MFA setup+verify efectuat automat pentru smoke.');
 }
@@ -253,6 +345,22 @@ async function checkDeclaration(declaration: 'd300' | 'd394' | 'd112' | 'd406'):
   }
 
   assert(response.ok, `${declaration.toUpperCase()} HTTP ${response.status}. Body: ${body.slice(0, 400)}`);
+
+  if (declaration === 'd406') {
+    if (response.status === 202) {
+      let queued: { job?: { id?: string; status?: string } } | null = null;
+      try {
+        queued = JSON.parse(body) as { job?: { id?: string; status?: string } };
+      } catch {
+        throw new Error(`D406 async a returnat JSON invalid: ${body.slice(0, 400)}`);
+      }
+      assert(queued?.job?.id, 'D406 async trebuie să întoarcă job.id.');
+      console.log(`[OK] D406 async queued: job=${queued.job.id} status=${queued.job.status ?? 'unknown'}`);
+      return;
+    }
+
+    assert(response.status === 200, `D406 trebuie să răspundă 200 (sync) sau 202 (async). Status curent: ${response.status}`);
+  }
 
   const performed = response.headers.get('x-anaf-xsd-performed');
   const valid = response.headers.get('x-anaf-xsd-valid');
@@ -306,6 +414,7 @@ async function checkValidationSummary(): Promise<void> {
 async function main(): Promise<void> {
   console.log(`ANAF smoke start: ${apiBase}, period=${period}`);
   await loginOrBootstrap();
+  await ensureCompanySelected();
 
   await checkDeclaration('d300');
   await checkDeclaration('d394');
