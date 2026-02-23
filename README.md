@@ -3,6 +3,8 @@
 [![ANAF Smoke](https://github.com/danengatsby/sega/actions/workflows/anaf-smoke.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/anaf-smoke.yml)
 [![OpenAPI Contract](https://github.com/danengatsby/sega/actions/workflows/openapi-contract.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/openapi-contract.yml)
 [![Performance KPI](https://github.com/danengatsby/sega/actions/workflows/performance-kpi.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/performance-kpi.yml)
+[![DR Restore Drill](https://github.com/danengatsby/sega/actions/workflows/dr-restore-drill.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/dr-restore-drill.yml)
+[![Observability Config](https://github.com/danengatsby/sega/actions/workflows/observability-config.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/observability-config.yml)
 
 
 Implementare MVP pentru aplicația de contabilitate descrisă în document, cu arhitectură pe 3 niveluri:
@@ -15,6 +17,11 @@ Implementare MVP pentru aplicația de contabilitate descrisă în document, cu a
 ## Ce este implementat
 
 - Autentificare JWT și roluri (`ADMIN`, `CHIEF_ACCOUNTANT`, `ACCOUNTANT`, `CASHIER`, `MANAGER`, `AUDITOR`)
+- Administrare multi-utilizator / multi-firmă:
+  - conturi separate per contabil (nume, email, parolă)
+  - firme multiple per contabil, cu rol distinct pe firmă
+  - comutare firmă activă în UI + companie implicită per utilizator
+  - date de identificare firmă extinse (CUI, reg. comerț, adresă, oraș, județ, țară, bancă, IBAN, contact)
 - Plan de conturi (`accounts`) + operatii CRUD, cu seed OMFP extins (600+ conturi sintetice/analitice)
 - Jurnal contabil cu înregistrare dublă (`journal_entries`, `journal_lines`), validare debit=credit
 - Parteneri (`partners`) pentru clienți/furnizori
@@ -82,6 +89,18 @@ Implementare MVP pentru aplicația de contabilitate descrisă în document, cu a
   - suită k6 cu praguri blocante `p95/p99` pe rute critice (`/api/invoices`, `/api/accounts`, `/api/reports/dashboard-bi`)
   - suită JMeter echivalentă + validare automată praguri din `.jtl`
   - fixture seed dedicat volumului de test (parteneri + facturi clienți/furnizori + user ACCOUNTANT fără MFA)
+- DR (RTO/RPO) operaționalizat:
+  - proceduri automate de backup PostgreSQL (`pg_dump`) și restore (`pg_restore`)
+  - exercițiu automat de restore cu validare row-count pe tabele `public` și raport JSON
+  - workflow lunar programat pentru restore drill (`.github/workflows/dr-restore-drill.yml`)
+- Control conformitate avansată (GDPR retention + audit ops):
+  - job retention audit log cu păstrare minimă 10 ani (3650 zile), rulare zilnică + trigger manual
+  - politică explicită de acces audit pe roluri configurabile (`COMPLIANCE_AUDIT_ALLOWED_ROLES`)
+  - raport conformitate verificabil (`/api/compliance/report`) cu evidențe runtime
+- Observabilitate enterprise (SLO + on-call):
+  - dashboard Grafana `SEGA SLO Overview` pentru uptime/latenta/error rate/throughput
+  - reguli Prometheus pentru SLO availability/latency p95 si alertare continua
+  - integrare Alertmanager catre receiver on-call + runbook incident response dedicat
 - Rapoarte:
   - Balanță de verificare
   - P&L simplificat
@@ -91,6 +110,7 @@ Implementare MVP pentru aplicația de contabilitate descrisă în document, cu a
 - Dashboard BI extins:
   - KPI financiari extinși (AR/AP, cash, net exposure, current ratio, marjă netă)
   - forecast cashflow 30/60/90 zile
+  - analiză comparativă explicită: luna curentă vs luna anterioară vs aceeași lună din anul precedent
   - alerte configurabile pentru scadențe/restanțe (prag zile, grace, sumă minimă, max alerte)
 - Audit trail (`audit_log`) extins: user_id/email/rol/sesiune, timestamp UTC, IP, user-agent, `old_values/new_values` (plus compat `beforeData/afterData`)
 - Dashboard web pentru operare rapidă
@@ -106,7 +126,7 @@ Implementare MVP pentru aplicația de contabilitate descrisă în document, cu a
 - `apps/backend/openapi/invoice-service.openapi.json` - contract OpenAPI serviciu invoice
 - `apps/frontend/src/App.tsx` - interfață modulară
 - `docker-compose.yml` - stack local (PostgreSQL + Redis + MinIO + profile Nginx/Prometheus/ELK)
-- `infra/nginx`, `infra/prometheus`, `infra/logstash` - configurații infrastructură
+- `infra/nginx`, `infra/prometheus`, `infra/grafana`, `infra/logstash` - configurații infrastructură
 - `infra/k8s` - manifests Kubernetes (core/observability/logging)
 - `infra/k8s/overlays/production-base` - bază producție (PVC, TLS ingress, patch-uri comune)
 - `infra/k8s/overlays/production-vault` - producție + External Secrets (HashiCorp Vault)
@@ -182,6 +202,16 @@ npm run invoice-service:dev
 
 - `POST /api/auth/login`
 - `POST /api/auth/switch-company`
+- `GET /api/admin/companies`
+- `POST /api/admin/companies`
+- `PATCH /api/admin/companies/:id`
+- `GET /api/admin/users`
+- `POST /api/admin/users`
+- `PATCH /api/admin/users/:id`
+- `POST /api/admin/users/:id/reset-password`
+- `POST /api/admin/memberships`
+- `PATCH /api/admin/memberships/:id`
+- `DELETE /api/admin/memberships/:id`
 - `GET/POST/PATCH /api/accounts`
 - `GET/POST /api/journal-entries`
 - `GET/POST /api/partners`
@@ -228,6 +258,8 @@ npm run invoice-service:dev
 - `GET /api/reports/balance-sheet`
 - `GET /api/reports/aging-receivables`
 - `GET /api/audit-log`
+- `GET /api/compliance/report`
+- `POST /api/compliance/retention/run`
 - `POST /api/bank-reconciliation/statements/import` (JSON intern)
 - `POST /api/bank-reconciliation/statements/import-file` (upload `file` + `accountCode`, format `AUTO|MT940|CAMT053|CSV`)
 - `GET /api/open-banking/connections`
@@ -277,6 +309,15 @@ NOTIFICATION_SMS_WEBHOOK_URL=
 NOTIFICATION_PUSH_WEBHOOK_URL=
 ```
 
+Config Conformitate (retention + audit policy) în `apps/backend/.env`:
+
+```dotenv
+COMPLIANCE_RETENTION_ENABLED=true
+COMPLIANCE_RETENTION_DAYS=3650
+COMPLIANCE_RETENTION_DAILY_HOUR_UTC=2
+COMPLIANCE_AUDIT_ALLOWED_ROLES=ADMIN,CHIEF_ACCOUNTANT,MANAGER,AUDITOR
+```
+
 Config porturi servicii extrase în `apps/backend/.env`:
 
 ```dotenv
@@ -292,11 +333,25 @@ INVOICE_SERVICE_PORT=4102
 npm run nginx:up
 ```
 
-- Prometheus + Redis exporter (port `9090`):
+- Prometheus + Alertmanager + Grafana + Redis exporter + on-call webhook mock (porturi `9090`, `9093`, `3000`, `18080`):
 
 ```bash
 npm run observability:up
 ```
+
+UI observabilitate:
+- Prometheus: `http://localhost:9090`
+- Alertmanager: `http://localhost:9093`
+- Grafana: `http://localhost:3000` (default `admin/admin`)
+- On-call webhook mock: `http://localhost:18080`
+
+Configurari cheie:
+- reguli/alerte SLO: `infra/prometheus/slo-alerts.yml`
+- receiver on-call: `infra/prometheus/alertmanager.yml`
+- dashboard SLO: `infra/grafana/dashboards/sega-slo-overview.json`
+- runbook incident response: `docs/incident-response-runbook.md`
+
+Pentru integrare reala on-call (PagerDuty/Opsgenie/Slack webhook), inlocuieste URL-ul receiver-ului din `infra/prometheus/alertmanager.yml`.
 
 - ELK (Elasticsearch `9200`, Logstash `5044/9600`, Kibana `5601`):
 
@@ -370,6 +425,8 @@ Backlog-ul executabil P0/P1/P2, mapat pe capitolele planului v3.0, este disponib
 
 - `docs/gap-backlog-2026-02-22.md`
 - `docs/microservices-transition-roadmap-2026-02-22.md`
+- `docs/raport-final-conformitate-2026-02-23.md`
+- `docs/plan-inchidere-conformitate-partiala-2026-02-23.md`
 
 ## Contracte microservicii extrase
 
@@ -491,6 +548,40 @@ Variabile utile:
 - `PERF_DASHBOARD_P95_MS` (default `1000`)
 - `PERF_DASHBOARD_P99_MS` (default `2000`)
 
+## DR Backup/Restore (RTO/RPO)
+
+Prerechizite locale:
+- `pg_dump`, `pg_restore`, `psql` instalate (PostgreSQL client tools)
+- `DATABASE_URL` setat spre baza sursă
+
+Comenzi:
+
+```bash
+npm run dr:backup
+npm run dr:restore -- --backup-file apps/backend/dr/backups/<fisier>.dump --target-db sega_restore_test
+npm run dr:drill
+```
+
+Prin `Makefile`:
+
+```bash
+make dr-backup
+make dr-restore-drill
+```
+
+Ce verifică `dr:drill`:
+- backup complet + checksum SHA256
+- restore într-o bază izolată
+- compară `count(*)` pentru toate tabelele din schema `public` (sursă vs restore)
+- validează țintele:
+  - `DR_RTO_TARGET_SECONDS` (default `3600`)
+  - `DR_RPO_TARGET_SECONDS` (default `900`)
+
+Artefacte locale:
+- backup: `apps/backend/dr/backups/*.dump`
+- metadata backup: `apps/backend/dr/backups/*.metadata.json`
+- raport drill: `apps/backend/dr/reports/restore-drill-*.json`
+
 ## CI (GitHub Actions)
 
 Validările automate rulează prin workflow-urile:
@@ -499,6 +590,8 @@ Validările automate rulează prin workflow-urile:
 - `.github/workflows/security-gates.yml` (dependency scan + secret scan, gate blocant la severitate HIGH/CRITICAL)
 - `.github/workflows/openapi-contract.yml` (generare + validare OpenAPI 3.0, inclusiv acoperire 100% endpoint-uri critice)
 - `.github/workflows/performance-kpi.yml` (seed KPI + k6 + JMeter cu bugete p95/p99 blocante)
+- `.github/workflows/dr-restore-drill.yml` (backup + restore + validare DR, programat lunar + manual)
+- `.github/workflows/observability-config.yml` (validare config Prometheus/Alertmanager/Grafana + docker-compose observability)
 
 Aplicare branch protection (required checks) pentru enforcement complet:
 
@@ -509,11 +602,16 @@ GITHUB_TOKEN=<token-cu-admin-repo> ./scripts/github-enforce-security-gates.sh ow
 Scriptul aplică branch protection pe `main`/`master` (dacă există) și setează check-urile obligatorii:
 `ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`.
 
-Se execută la:
+Workflow-urile de gate (`ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`) se execută la:
 
 - `push` pe `main`/`master`
 - `pull_request`
 - rulare manuală (`workflow_dispatch`)
+
+Workflow-ul `DR Restore Drill` se execută:
+
+- lunar (cron: `0 3 1 * *`)
+- manual (`workflow_dispatch`)
 
 Pașii CI includ:
 
