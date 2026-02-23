@@ -28,7 +28,7 @@ permissions:
 jobs:
   business-kpi-monthly:
     name: Business KPI Monthly
-    runs-on: ubuntu-latest
+    runs-on: ${{ vars.KPI_REPORT_RUNS_ON != '' && vars.KPI_REPORT_RUNS_ON || 'ubuntu-latest' }}
     env:
       DATABASE_URL: ${{ secrets.KPI_REPORT_DATABASE_URL }}
       KPI_REPORT_COMPANY_ID: ${{ secrets.KPI_REPORT_COMPANY_ID }}
@@ -57,8 +57,22 @@ jobs:
             echo "Missing company id: set secret KPI_REPORT_COMPANY_ID or workflow input company_id"
             exit 1
           fi
+
+          if [ "${RUNNER_ENV}" = "github-hosted" ]; then
+            case "${DATABASE_URL}" in
+              *localhost*|*127.0.0.1*|*://db:*|*@db:*)
+                echo "KPI_REPORT_DATABASE_URL points to a local/private host (${DATABASE_URL})."
+                echo "This is not reachable from github-hosted runners."
+                echo "Options:"
+                echo "  1) set KPI_REPORT_DATABASE_URL to a reachable Postgres endpoint (recommended)"
+                echo "  2) add a self-hosted runner and set repo variable KPI_REPORT_RUNS_ON=self-hosted"
+                exit 1
+                ;;
+            esac
+          fi
         env:
           COMPANY_ID_INPUT: ${{ github.event.inputs.company_id }}
+          RUNNER_ENV: ${{ runner.environment }}
 
       - name: Install dependencies
         run: npm ci

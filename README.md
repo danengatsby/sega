@@ -438,6 +438,9 @@ Automatizare KPI business:
 - workflow lunar: `.github/workflows/business-kpi-monthly.yml`
 - generator raport: `apps/backend/scripts/compliance/generate-monthly-kpi-report.ts`
 - output: `docs/reports/kpi-business-report-YYYY-MM.md`
+- secrets obligatorii: `KPI_REPORT_DATABASE_URL`, `KPI_REPORT_COMPANY_ID`
+- optional: `KPI_REPORT_NPS_SCORE`, `KPI_REPORT_NPS_RESPONDENTS`
+- runner selection: repo variable `KPI_REPORT_RUNS_ON` (implicit `ubuntu-latest`; seteaza `self-hosted` daca DB este doar local/VPN)
 
 ## Contracte microservicii extrase
 
