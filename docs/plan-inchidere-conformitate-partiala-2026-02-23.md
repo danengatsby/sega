@@ -14,6 +14,14 @@ Capitole tintite:
 - 9. KPI si criterii de succes
 - 11. Concluzie si recomandari finale
 
+## Status implementare (actualizat la 23 Feb 2026)
+
+- `C1-01`: livrat (`docs/kpi-business-dictionary-2026-02-23.md`).
+- `C4-01`: livrat (`docs/traceability-matrix-2026-02-23.md`).
+- `C4-02`: livrat (workflow `.github/workflows/release-checklist.yml` + template `.github/pull_request_template.md`).
+- `C5-01`: livrat (`docs/raci-tehnic-2026-02-23.md` - include politica code review si setari recomandate branch protection).
+- `C8-01`: livrat (`docs/risk-register-2026-02-23.md`).
+
 ## Principii de executie
 
 - Fiecare capitol partial este mapat pe artefacte concrete (document, dashboard, raport, workflow).
@@ -128,4 +136,3 @@ DoD:
 - Run-uri workflow release checklist.
 - Risk register cu istoric actualizari.
 - Executive review trimestrial.
-

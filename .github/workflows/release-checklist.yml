@@ -1,0 +1,173 @@
+name: Release Checklist
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types:
+      - opened
+      - edited
+      - synchronize
+      - reopened
+      - ready_for_review
+  pull_request_review:
+    types:
+      - submitted
+      - dismissed
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  release-checklist:
+    name: Release Checklist
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_CHECKLIST_GATE_MODE: auto
+      RELEASE_CHECKLIST_HARD_GATE_START: '2026-03-23'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Ensure PR template exists
+        run: test -f .github/pull_request_template.md
+
+      - name: Validate release checklist in PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const core = require('@actions/core');
+
+            const modeRaw = (process.env.RELEASE_CHECKLIST_GATE_MODE || 'soft').toLowerCase();
+            const hardStartRaw = process.env.RELEASE_CHECKLIST_HARD_GATE_START || '';
+            const requiredSections = ['Livrabile faza', 'Regression risks', 'Verificari post-release'];
+            const requiredChecklistItems = [
+              'Teste automate relevante rulate (unit/integration/e2e/smoke)',
+              'Risk assessment actualizat (impact + mitigare)',
+              'Plan de rollback definit',
+              'Documentatie actualizata (README/docs/changelog)',
+            ];
+
+            const pullNumber = context.payload.pull_request?.number;
+            if (!pullNumber) {
+              core.notice('No pull request context available; skipping.');
+              return;
+            }
+
+            const { owner, repo } = context.repo;
+            const prResponse = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: pullNumber,
+            });
+            const pr = prResponse.data;
+            const body = pr.body || '';
+            const prAuthor = pr.user?.login || '';
+
+            let mode = modeRaw;
+            if (mode === 'auto') {
+              if (!hardStartRaw) {
+                mode = 'soft';
+              } else {
+                const hardStartMs = Date.parse(`${hardStartRaw}T00:00:00Z`);
+                if (Number.isNaN(hardStartMs)) {
+                  core.warning(`Invalid RELEASE_CHECKLIST_HARD_GATE_START='${hardStartRaw}'. Falling back to soft mode.`);
+                  mode = 'soft';
+                } else {
+                  mode = Date.now() >= hardStartMs ? 'hard' : 'soft';
+                }
+              }
+            }
+
+            if (mode !== 'soft' && mode !== 'hard') {
+              core.warning(`Unknown RELEASE_CHECKLIST_GATE_MODE='${modeRaw}'. Falling back to soft mode.`);
+              mode = 'soft';
+            }
+
+            core.notice(`Release checklist gate mode: ${mode}`);
+
+            function escapeRegExp(value) {
+              return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            const missingSections = [];
+            const emptySections = [];
+
+            for (const title of requiredSections) {
+              const sectionRegex = new RegExp(`^##\\s+${escapeRegExp(title)}\\s*$`, 'im');
+              if (!sectionRegex.test(body)) {
+                missingSections.push(title);
+                continue;
+              }
+
+              const contentRegex = new RegExp(
+                `##\\s+${escapeRegExp(title)}\\s*([\\s\\S]*?)(?=\\n##\\s+|$)`,
+                'i',
+              );
+              const match = body.match(contentRegex);
+              const content = (match?.[1] || '')
+                .replace(/<!--[\s\S]*?-->/g, '')
+                .replace(/[-*]\s+\[[ xX]\]\s*/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+              if (!content) {
+                emptySections.push(title);
+              }
+            }
+
+            const uncheckedChecklistItems = [];
+            for (const item of requiredChecklistItems) {
+              const checkedRegex = new RegExp(`-\\s*\\[[xX]\\]\\s*${escapeRegExp(item)}\\s*$`, 'im');
+              if (!checkedRegex.test(body)) {
+                uncheckedChecklistItems.push(item);
+              }
+            }
+
+            const reviewsResponse = await github.rest.pulls.listReviews({
+              owner,
+              repo,
+              pull_number: pullNumber,
+              per_page: 100,
+            });
+
+            const latestReviewStateByUser = new Map();
+            for (const review of reviewsResponse.data) {
+              const reviewer = review.user?.login;
+              if (!reviewer || reviewer === prAuthor) {
+                continue;
+              }
+              latestReviewStateByUser.set(reviewer, review.state);
+            }
+
+            const approvalCount = [...latestReviewStateByUser.values()].filter((state) => state === 'APPROVED').length;
+
+            const issues = [];
+            if (missingSections.length) {
+              issues.push(`Lipsesc sectiuni obligatorii: ${missingSections.join(', ')}.`);
+            }
+            if (emptySections.length) {
+              issues.push(`Sectiuni fara continut relevant: ${emptySections.join(', ')}.`);
+            }
+            if (uncheckedChecklistItems.length) {
+              issues.push(
+                `Checklist incomplet: ${uncheckedChecklistItems.length}/${requiredChecklistItems.length} item-uri ne-bifate.`,
+              );
+            }
+            if (approvalCount < 1) {
+              issues.push(`Minimum 1 review aprobat este necesar (curent: ${approvalCount}).`);
+            }
+
+            if (!issues.length) {
+              core.notice('Release checklist validation passed.');
+              return;
+            }
+
+            const message = issues.map((entry, index) => `${index + 1}. ${entry}`).join('\n');
+            if (mode === 'hard') {
+              core.setFailed(`Release checklist gate (hard) failed:\n${message}`);
+            } else {
+              core.warning(`Release checklist gate (soft) findings:\n${message}`);
+            }
