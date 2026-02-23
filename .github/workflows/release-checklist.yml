@@ -38,8 +38,6 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const core = require('@actions/core');
-
             const modeRaw = (process.env.RELEASE_CHECKLIST_GATE_MODE || 'soft').toLowerCase();
             const hardStartRaw = process.env.RELEASE_CHECKLIST_HARD_GATE_START || '';
             const requiredSections = ['Livrabile faza', 'Regression risks', 'Verificari post-release'];
