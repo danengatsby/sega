@@ -433,6 +433,7 @@ Backlog-ul executabil P0/P1/P2, mapat pe capitolele planului v3.0, este disponib
 - `docs/raci-tehnic-2026-02-23.md`
 - `docs/executive-review-2026-Q1.md`
 - `docs/adr-index-2026-02-23.md`
+- `docs/ready-to-merge-2026-02-23.md`
 
 Automatizare KPI business:
 - workflow lunar: `.github/workflows/business-kpi-monthly.yml`
