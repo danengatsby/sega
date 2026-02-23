@@ -104,6 +104,7 @@ enum ExportJobKind {
   ANAF_D300
   ANAF_D394
   ANAF_D112
+  ANAF_D406
 }
 
 enum SupplierInvoiceApprovalActionType {
@@ -170,6 +171,15 @@ model Company {
   code          String                @unique
   name          String
   cui           String?
+  registrationNumber String?
+  address       String?
+  city          String?
+  county        String?
+  country       String?               @default("RO")
+  bankName      String?
+  iban          String?
+  email         String?
+  phone         String?
   isActive      Boolean               @default(true)
   createdAt     DateTime              @default(now())
   updatedAt     DateTime              @updatedAt
@@ -330,6 +340,7 @@ model JournalEntry {
   @@unique([companyId, number])
   @@unique([reversalOfEntryId])
   @@index([companyId])
+  @@index([companyId, date])
   @@index([date])
   @@index([period])
   @@index([status])
@@ -347,6 +358,7 @@ model JournalLine {
   account     Account      @relation(fields: [accountId], references: [id])
 
   @@index([entryId])
+  @@index([entryId, accountId])
   @@index([accountId])
 }
 
@@ -477,6 +489,8 @@ model Invoice {
 
   @@unique([companyId, number])
   @@index([companyId])
+  @@index([companyId, issueDate])
+  @@index([companyId, status, dueDate, issueDate])
   @@index([status])
   @@index([issueDate])
   @@index([dueDate])
@@ -517,6 +531,7 @@ model SupplierInvoice {
 
   @@unique([companyId, number])
   @@index([companyId])
+  @@index([companyId, status, dueDate, receivedDate])
   @@index([status])
   @@index([approvalStatus])
   @@index([approvalFinalizedById])
@@ -588,6 +603,7 @@ model Payment {
   company    Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([companyId, invoiceId])
   @@index([date])
   @@index([invoiceId])
 }
@@ -607,6 +623,7 @@ model SupplierPayment {
   company          Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   @@index([companyId])
+  @@index([companyId, supplierInvoiceId])
   @@index([date])
   @@index([supplierInvoiceId])
 }
@@ -682,6 +699,7 @@ model PayrollRun {
 
   @@unique([companyId, period])
   @@index([companyId])
+  @@index([companyId, payDate])
   @@index([period])
 }
 
@@ -777,6 +795,7 @@ model BankStatementLine {
   companyId      String @db.Uuid
   statementId    String @db.Uuid
   externalTransactionId String?
+  dedupeKey      String?
   date           DateTime
   amount         Decimal                 @db.Decimal(18, 2)
   description    String?
@@ -795,6 +814,7 @@ model BankStatementLine {
   @@index([statementId, date])
   @@index([reference])
   @@index([companyId, externalTransactionId])
+  @@unique([companyId, dedupeKey])
 }
 
 model OpenBankingConnection {
@@ -891,7 +911,10 @@ model ExportJob {
   errorMessage   String?
   resultMimeType String?
   resultFilename String?
-  resultData     Bytes?
+  resultSizeBytes Int?
+  resultStorageUrl String?
+  resultSignedUrl String?
+  resultSignedUrlExpiresAt DateTime?
   createdAt      DateTime        @default(now())
   startedAt      DateTime?
   finishedAt     DateTime?

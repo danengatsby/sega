@@ -3,6 +3,7 @@ import type { Request, Response } from 'express';
 import type { User } from '@prisma/client';
 import { env } from '../config/env.js';
 import { prisma } from './prisma.js';
+import { blacklistSessionId, isSessionIdBlacklisted } from './auth-token-blacklist.js';
 import {
   ACCESS_COOKIE_NAME,
   REFRESH_COOKIE_NAME,
@@ -11,6 +12,7 @@ import {
   getRefreshCookieOptions,
   signAccessToken,
   signRefreshToken,
+  verifyAccessToken,
   verifyRefreshToken,
 } from '../middleware/auth.js';
 
@@ -21,6 +23,7 @@ export interface PublicUser {
   role: User['role'];
   mustChangePassword: boolean;
   mfaEnabled: boolean;
+  companySelectionRequired?: boolean;
 }
 
 interface AuthTokens {
@@ -29,13 +32,13 @@ interface AuthTokens {
   sessionId: string;
 }
 
-const REFRESH_TOKEN_TTL_MS = env.JWT_REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL_MS = env.JWT_REFRESH_TTL_HOURS * 60 * 60 * 1000;
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-function toPublicUser(user: User): PublicUser {
+function toPublicUser(user: User, companySelectionRequired: boolean): PublicUser {
   return {
     id: user.id,
     email: user.email,
@@ -43,10 +46,11 @@ function toPublicUser(user: User): PublicUser {
     role: user.role,
     mustChangePassword: user.mustChangePassword,
     mfaEnabled: user.mfaEnabled,
+    companySelectionRequired,
   };
 }
 
-function buildTokens(user: User, sessionId: string): AuthTokens {
+function buildTokens(user: User, sessionId: string, companySelectionRequired: boolean): AuthTokens {
   const accessToken = signAccessToken({
     id: user.id,
     email: user.email,
@@ -54,12 +58,14 @@ function buildTokens(user: User, sessionId: string): AuthTokens {
     name: user.name,
     mustChangePassword: user.mustChangePassword,
     mfaEnabled: user.mfaEnabled,
+    companySelectionRequired,
     sid: sessionId,
   });
 
   const refreshToken = signRefreshToken({
     userId: user.id,
     sid: sessionId,
+    companySelectionRequired,
   });
 
   return {
@@ -87,22 +93,33 @@ async function createRefreshSession(
   });
 }
 
-export async function issueLoginSession(user: User, req: Request, res: Response): Promise<PublicUser> {
+export async function issueLoginSession(
+  user: User,
+  req: Request,
+  res: Response,
+  options?: { companySelectionRequired?: boolean },
+): Promise<PublicUser> {
+  const companySelectionRequired = options?.companySelectionRequired === true;
   const sessionId = randomUUID();
-  const tokens = buildTokens(user, sessionId);
+  const tokens = buildTokens(user, sessionId, companySelectionRequired);
   await createRefreshSession(user, sessionId, tokens.refreshToken, req);
 
   res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, getAccessCookieOptions());
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
 
-  return toPublicUser(user);
+  return toPublicUser(user, companySelectionRequired);
 }
 
 export async function rotateRefreshSession(req: Request, res: Response, refreshToken: string): Promise<PublicUser | null> {
-  let payload: { sid: string; sub: string };
+  let payload: { sid: string; sub: string; companySelectionRequired?: boolean };
   try {
     payload = verifyRefreshToken(refreshToken);
   } catch {
+    clearAuthCookies(res);
+    return null;
+  }
+
+  if (await isSessionIdBlacklisted(payload.sid)) {
     clearAuthCookies(res);
     return null;
   }
@@ -139,7 +156,8 @@ export async function rotateRefreshSession(req: Request, res: Response, refreshT
   }
 
   const nextSessionId = randomUUID();
-  const tokens = buildTokens(existingSession.user, nextSessionId);
+  const companySelectionRequired = payload.companySelectionRequired === true;
+  const tokens = buildTokens(existingSession.user, nextSessionId, companySelectionRequired);
   const now = new Date();
 
   await prisma.$transaction(async (tx) => {
@@ -166,7 +184,7 @@ export async function rotateRefreshSession(req: Request, res: Response, refreshT
   res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, getAccessCookieOptions());
   res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
 
-  return toPublicUser(existingSession.user);
+  return toPublicUser(existingSession.user, companySelectionRequired);
 }
 
 export async function revokeRefreshSessionByToken(refreshToken: string): Promise<void> {
@@ -182,6 +200,26 @@ export async function revokeRefreshSessionByToken(refreshToken: string): Promise
         revokedAt: new Date(),
       },
     });
+    await blacklistSessionId(payload.sid, payload.exp);
+  } catch {
+    // Ignore invalid tokens on logout attempts.
+  }
+}
+
+export async function revokeSessionByAccessToken(accessToken: string): Promise<void> {
+  try {
+    const payload = verifyAccessToken(accessToken);
+    await prisma.refreshSession.updateMany({
+      where: {
+        id: payload.sid,
+        userId: payload.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    });
+    await blacklistSessionId(payload.sid, payload.exp);
   } catch {
     // Ignore invalid tokens on logout attempts.
   }

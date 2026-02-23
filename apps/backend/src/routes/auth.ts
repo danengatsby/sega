@@ -6,14 +6,14 @@ import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { env } from '../config/env.js';
 import type { PublicUser } from '../lib/auth-session.js';
-import { issueLoginSession, revokeRefreshSessionByToken, rotateRefreshSession } from '../lib/auth-session.js';
+import { issueLoginSession, revokeRefreshSessionByToken, revokeSessionByAccessToken, rotateRefreshSession } from '../lib/auth-session.js';
 import { readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/company-access.js';
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../lib/http-error.js';
 import type { Permission } from '../lib/rbac.js';
 import { buildMfaSetupPayload, generateTotpSecret, isMfaRequiredRole, verifyTotpCode } from '../lib/mfa.js';
 import { writeAudit } from '../lib/audit.js';
-import { authenticate, clearAuthCookies, getRefreshToken } from '../middleware/auth.js';
+import { authenticate, clearAuthCookies, getAccessToken, getRefreshToken } from '../middleware/auth.js';
 
 const router = Router();
 let bootstrapTokenConsumed = false;
@@ -90,6 +90,13 @@ interface AuthenticatedUserPayload extends PublicUser {
   permissions: Permission[];
   availableCompanies: AuthCompanySummary[];
   companyOnboardingRequired: boolean;
+}
+
+type BootstrapPayload = z.infer<typeof bootstrapSchema>;
+
+interface BootstrapFailure {
+  statusCode: number;
+  message: string;
 }
 
 function tokensEqual(expected: string, provided: string): boolean {
@@ -202,6 +209,134 @@ async function revokeAllActiveRefreshSessions(userId: string): Promise<void> {
       revokedAt: new Date(),
     },
   });
+}
+
+function resolveBootstrapAdminDisabledMessage(): string | null {
+  if (env.NODE_ENV === 'production') {
+    return 'Bootstrap admin este dezactivat în producție.';
+  }
+
+  if (!env.BOOTSTRAP_ADMIN_ENABLED) {
+    return 'Bootstrap admin este dezactivat.';
+  }
+
+  return null;
+}
+
+function validateBootstrapAdminAccess(req: Request): BootstrapFailure | null {
+  const disabledMessage = resolveBootstrapAdminDisabledMessage();
+  if (disabledMessage) {
+    return {
+      statusCode: 403,
+      message: disabledMessage,
+    };
+  }
+
+  if (bootstrapTokenConsumed) {
+    return {
+      statusCode: 409,
+      message: 'Token-ul de bootstrap a fost deja folosit.',
+    };
+  }
+
+  const configuredBootstrapToken = env.BOOTSTRAP_ADMIN_TOKEN;
+  const providedBootstrapToken = readBootstrapToken(req.headers['x-bootstrap-token']);
+  if (!configuredBootstrapToken || !providedBootstrapToken || !tokensEqual(configuredBootstrapToken, providedBootstrapToken)) {
+    return {
+      statusCode: 401,
+      message: 'Token bootstrap invalid.',
+    };
+  }
+
+  return null;
+}
+
+function parseBootstrapPayload(body: unknown): BootstrapPayload | null {
+  const parsed = bootstrapSchema.safeParse(body);
+  if (!parsed.success) {
+    return null;
+  }
+
+  return parsed.data;
+}
+
+async function createBootstrapAdminUser(req: Request, payload: BootstrapPayload): Promise<{
+  id: string;
+  email: string;
+  role: Role;
+  mustChangePassword: boolean;
+}> {
+  const user = await prisma.$transaction(async (tx) => {
+    const userCount = await tx.user.count();
+    if (userCount > 0) {
+      throw HttpError.conflict('Bootstrap dezactivat: există deja utilizatori.');
+    }
+
+    const passwordHash = await bcrypt.hash(payload.password, 12);
+    const createdUser = await tx.user.create({
+      data: {
+        email: normalizeEmail(payload.email),
+        name: payload.name,
+        passwordHash,
+        role: Role.ADMIN,
+        mustChangePassword: true,
+      },
+    });
+
+    const fallbackCompany =
+      (await tx.company.findFirst({
+        where: { isActive: true },
+        orderBy: [{ createdAt: 'asc' }],
+      })) ??
+      (await tx.company.upsert({
+        where: { code: DEFAULT_BOOTSTRAP_COMPANY_CODE },
+        update: {
+          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
+          isActive: true,
+        },
+        create: {
+          code: DEFAULT_BOOTSTRAP_COMPANY_CODE,
+          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
+          isActive: true,
+        },
+      }));
+
+    await tx.userCompanyMembership.create({
+      data: {
+        userId: createdUser.id,
+        companyId: fallbackCompany.id,
+        role: Role.ADMIN,
+        isDefault: true,
+      },
+    });
+
+    await writeAudit(
+      req,
+      {
+        tableName: 'users',
+        recordId: createdUser.id,
+        action: 'CREATE',
+        reason: 'bootstrap-admin',
+        afterData: {
+          email: createdUser.email,
+          name: createdUser.name,
+          role: createdUser.role,
+          mustChangePassword: createdUser.mustChangePassword,
+        },
+        userId: createdUser.id,
+      },
+      tx,
+    );
+
+    return createdUser;
+  });
+
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+  };
 }
 
 router.post('/login', async (req, res) => {
@@ -686,108 +821,23 @@ router.post('/switch-company', authenticate, async (req, res) => {
 });
 
 router.post('/bootstrap-admin', async (req, res) => {
-  if (env.NODE_ENV === 'production') {
-    res.status(403).json({ message: 'Bootstrap admin este dezactivat în producție.' });
+  const accessError = validateBootstrapAdminAccess(req);
+  if (accessError) {
+    res.status(accessError.statusCode).json({ message: accessError.message });
     return;
   }
 
-  if (!env.BOOTSTRAP_ADMIN_ENABLED) {
-    res.status(403).json({ message: 'Bootstrap admin este dezactivat.' });
-    return;
-  }
-
-  if (bootstrapTokenConsumed) {
-    res.status(409).json({ message: 'Token-ul de bootstrap a fost deja folosit.' });
-    return;
-  }
-
-  const configuredBootstrapToken = env.BOOTSTRAP_ADMIN_TOKEN;
-  const providedBootstrapToken = readBootstrapToken(req.headers['x-bootstrap-token']);
-
-  if (!configuredBootstrapToken || !providedBootstrapToken || !tokensEqual(configuredBootstrapToken, providedBootstrapToken)) {
-    res.status(401).json({ message: 'Token bootstrap invalid.' });
-    return;
-  }
-
-  const parsed = bootstrapSchema.safeParse(req.body);
-  if (!parsed.success) {
+  const payload = parseBootstrapPayload(req.body);
+  if (!payload) {
     res.status(400).json({ message: 'Date invalide.' });
     return;
   }
 
-  const user = await prisma.$transaction(async (tx) => {
-    const userCount = await tx.user.count();
-    if (userCount > 0) {
-      throw HttpError.conflict('Bootstrap dezactivat: există deja utilizatori.');
-    }
-
-    const passwordHash = await bcrypt.hash(parsed.data.password, 12);
-    const createdUser = await tx.user.create({
-      data: {
-        email: normalizeEmail(parsed.data.email),
-        name: parsed.data.name,
-        passwordHash,
-        role: Role.ADMIN,
-        mustChangePassword: true,
-      },
-    });
-
-    const fallbackCompany =
-      (await tx.company.findFirst({
-        where: { isActive: true },
-        orderBy: [{ createdAt: 'asc' }],
-      })) ??
-      (await tx.company.upsert({
-        where: { code: DEFAULT_BOOTSTRAP_COMPANY_CODE },
-        update: {
-          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
-          isActive: true,
-        },
-        create: {
-          code: DEFAULT_BOOTSTRAP_COMPANY_CODE,
-          name: DEFAULT_BOOTSTRAP_COMPANY_NAME,
-          isActive: true,
-        },
-      }));
-
-    await tx.userCompanyMembership.create({
-      data: {
-        userId: createdUser.id,
-        companyId: fallbackCompany.id,
-        role: Role.ADMIN,
-        isDefault: true,
-      },
-    });
-
-    await writeAudit(
-      req,
-      {
-        tableName: 'users',
-        recordId: createdUser.id,
-        action: 'CREATE',
-        reason: 'bootstrap-admin',
-        afterData: {
-          email: createdUser.email,
-          name: createdUser.name,
-          role: createdUser.role,
-          mustChangePassword: createdUser.mustChangePassword,
-        },
-        userId: createdUser.id,
-      },
-      tx,
-    );
-
-    return createdUser;
-  });
+  const user = await createBootstrapAdminUser(req, payload);
 
   bootstrapTokenConsumed = true;
 
-  res.status(201).json({
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    mustChangePassword: user.mustChangePassword,
-  });
+  res.status(201).json(user);
 });
 
 router.post('/change-password', authenticate, async (req, res) => {
@@ -889,6 +939,11 @@ router.get('/me', authenticate, async (req, res) => {
 });
 
 router.post('/logout', async (req, res) => {
+  const accessToken = getAccessToken(req);
+  if (accessToken) {
+    await revokeSessionByAccessToken(accessToken);
+  }
+
   const refreshToken = getRefreshToken(req);
   if (refreshToken) {
     await revokeRefreshSessionByToken(refreshToken);
