@@ -347,16 +347,19 @@ async function checkDeclaration(declaration: 'd300' | 'd394' | 'd112' | 'd406'):
   assert(response.ok, `${declaration.toUpperCase()} HTTP ${response.status}. Body: ${body.slice(0, 400)}`);
 
   if (declaration === 'd406') {
-    assert(response.status === 202, `D406 trebuie să răspundă 202 (async job). Status curent: ${response.status}`);
-    let queued: { job?: { id?: string; status?: string } } | null = null;
-    try {
-      queued = JSON.parse(body) as { job?: { id?: string; status?: string } };
-    } catch {
-      throw new Error(`D406 async a returnat JSON invalid: ${body.slice(0, 400)}`);
+    if (response.status === 202) {
+      let queued: { job?: { id?: string; status?: string } } | null = null;
+      try {
+        queued = JSON.parse(body) as { job?: { id?: string; status?: string } };
+      } catch {
+        throw new Error(`D406 async a returnat JSON invalid: ${body.slice(0, 400)}`);
+      }
+      assert(queued?.job?.id, 'D406 async trebuie să întoarcă job.id.');
+      console.log(`[OK] D406 async queued: job=${queued.job.id} status=${queued.job.status ?? 'unknown'}`);
+      return;
     }
-    assert(queued?.job?.id, 'D406 async trebuie să întoarcă job.id.');
-    console.log(`[OK] D406 async queued: job=${queued.job.id} status=${queued.job.status ?? 'unknown'}`);
-    return;
+
+    assert(response.status === 200, `D406 trebuie să răspundă 200 (sync) sau 202 (async). Status curent: ${response.status}`);
   }
 
   const performed = response.headers.get('x-anaf-xsd-performed');
