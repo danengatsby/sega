@@ -82,6 +82,12 @@ async function processSingleQueuedJob(forcedJobId?: string): Promise<void> {
       startedAt: new Date(),
       finishedAt: null,
       errorMessage: null,
+      resultMimeType: null,
+      resultFilename: null,
+      resultSizeBytes: null,
+      resultStorageUrl: null,
+      resultSignedUrl: null,
+      resultSignedUrlExpiresAt: null,
       attempts: {
         increment: 1,
       },
@@ -102,13 +108,21 @@ async function processSingleQueuedJob(forcedJobId?: string): Promise<void> {
 
   try {
     const result = await executeExportJob(job);
+    const resultMimeType = (result as { mimeType?: string }).mimeType ?? null;
+    const resultFilename = (result as { filename?: string }).filename ?? null;
+    const resultData = (result as { data?: Buffer }).data;
+    const resultSizeBytes = Buffer.isBuffer(resultData) ? resultData.byteLength : null;
+
     await prisma.exportJob.update({
       where: { id: job.id },
       data: {
         status: ExportJobStatus.DONE,
-        resultData: result.data,
-        resultMimeType: result.mimeType,
-        resultFilename: result.filename,
+        resultMimeType,
+        resultFilename,
+        resultSizeBytes,
+        resultStorageUrl: null,
+        resultSignedUrl: null,
+        resultSignedUrlExpiresAt: null,
         errorMessage: null,
         finishedAt: new Date(),
       },

@@ -32,7 +32,21 @@ interface AuthTokens {
   sessionId: string;
 }
 
-const REFRESH_TOKEN_TTL_MS = env.JWT_REFRESH_TTL_HOURS * 60 * 60 * 1000;
+const REFRESH_TOKEN_TTL_HOURS = (() => {
+  const configured = (env as Record<string, unknown>).JWT_REFRESH_TTL_HOURS;
+  const legacyRefreshTtlDays = typeof env.JWT_REFRESH_TTL_DAYS === 'number' ? env.JWT_REFRESH_TTL_DAYS : 7;
+  if (typeof configured === 'number' && Number.isFinite(configured) && configured > 0) {
+    return configured;
+  }
+  if (typeof configured === 'string') {
+    const parsed = Number(configured);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return legacyRefreshTtlDays * 24;
+})();
+const REFRESH_TOKEN_TTL_MS = REFRESH_TOKEN_TTL_HOURS * 60 * 60 * 1000;
 
 function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');

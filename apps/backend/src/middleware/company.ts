@@ -1,6 +1,6 @@
 import type { NextFunction, Request, Response } from 'express';
 import { HttpError } from '../lib/http-error.js';
-import { ensureUserHasCompanyMembership, readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/company-access.js';
+import { readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/company-access.js';
 
 export async function resolveCompanyContext(req: Request, _res: Response, next: NextFunction): Promise<void> {
   try {
@@ -9,7 +9,6 @@ export async function resolveCompanyContext(req: Request, _res: Response, next: 
     }
 
     const requestedCompanyId = readRequestedCompanyId(req);
-    await ensureUserHasCompanyMembership(req.user.id, req.user.role);
 
     const accessContext = await resolveUserCompanyAccessContext(req.user.id, requestedCompanyId);
     if (!accessContext) {
@@ -31,4 +30,3 @@ export async function resolveCompanyContext(req: Request, _res: Response, next: 
     next(error);
   }
 }
-
