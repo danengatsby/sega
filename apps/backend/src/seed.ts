@@ -33,14 +33,14 @@ async function main() {
       name: 'Administrator',
       role: Role.ADMIN,
       passwordHash,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
     create: {
       email: env.ADMIN_EMAIL,
       name: 'Administrator',
       role: Role.ADMIN,
       passwordHash,
-      mustChangePassword: true,
+      mustChangePassword: false,
     },
   });
 
