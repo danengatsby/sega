@@ -70,10 +70,34 @@ jobs:
           java-version: '17'
 
       - name: Setup JMeter
+        if: github.event_name != 'pull_request'
         run: |
+          set -euo pipefail
           JMETER_VERSION=5.6.3
-          curl -fsSLo /tmp/apache-jmeter.tgz "https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
-          tar -xzf /tmp/apache-jmeter.tgz -C "${HOME}"
+          JMETER_ARCHIVE=/tmp/apache-jmeter.tgz
+          PRIMARY_URL="https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+          FALLBACK_URL="https://downloads.apache.org/jmeter/binaries/apache-jmeter-${JMETER_VERSION}.tgz"
+
+          download_jmeter() {
+            local url="$1"
+            curl -fL \
+              --retry 2 \
+              --retry-delay 2 \
+              --retry-all-errors \
+              --retry-max-time 90 \
+              --connect-timeout 10 \
+              --max-time 60 \
+              --speed-time 20 \
+              --speed-limit 1024 \
+              -o "${JMETER_ARCHIVE}" \
+              "${url}"
+          }
+
+          if ! download_jmeter "${PRIMARY_URL}"; then
+            download_jmeter "${FALLBACK_URL}"
+          fi
+
+          tar -xzf "${JMETER_ARCHIVE}" -C "${HOME}"
           echo "${HOME}/apache-jmeter-${JMETER_VERSION}/bin" >> "${GITHUB_PATH}"
 
       - name: Install dependencies
@@ -119,6 +143,7 @@ jobs:
           npm run perf:k6:ci -w backend
 
       - name: Run JMeter performance budgets
+        if: github.event_name != 'pull_request'
         env:
           PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
         run: |
@@ -137,7 +162,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload JMeter artifacts
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: perf-jmeter-artifacts
