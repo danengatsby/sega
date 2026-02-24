@@ -124,6 +124,58 @@
               <stringProp name="JSONPostProcessor.compute_concat">false</stringProp>
             </JSONPostProcessor>
             <hashTree />
+            <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract fallbackCompanyId" enabled="true">
+              <stringProp name="JSONPostProcessor.referenceNames">fallbackCompanyId</stringProp>
+              <stringProp name="JSONPostProcessor.jsonPathExprs">$.user.availableCompanies[0].id</stringProp>
+              <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+              <stringProp name="JSONPostProcessor.defaultValues"></stringProp>
+              <stringProp name="JSONPostProcessor.compute_concat">false</stringProp>
+            </JSONPostProcessor>
+            <hashTree />
+          </hashTree>
+          <IfController guiclass="IfControllerPanel" testclass="IfController" testname="Switch Company If Needed" enabled="true">
+            <stringProp name="IfController.condition">${__groovy((vars.get('companyId') == null || vars.get('companyId').trim().isEmpty() || vars.get('companyId') == 'null') &amp;&amp; vars.get('fallbackCompanyId') != null &amp;&amp; !vars.get('fallbackCompanyId').trim().isEmpty())}</stringProp>
+            <boolProp name="IfController.evaluateAll">false</boolProp>
+            <boolProp name="IfController.useExpression">true</boolProp>
+          </IfController>
+          <hashTree>
+            <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="POST /api/auth/switch-company" enabled="true">
+              <elementProp name="HTTPsampler.Arguments" elementType="Arguments">
+                <collectionProp name="Arguments.arguments">
+                  <elementProp name="" elementType="HTTPArgument">
+                    <boolProp name="HTTPArgument.always_encode">false</boolProp>
+                    <stringProp name="Argument.value">{&quot;companyId&quot;:&quot;${fallbackCompanyId}&quot;,&quot;makeDefault&quot;:false,&quot;reason&quot;:&quot;perf-jmeter-company-selection&quot;}</stringProp>
+                    <stringProp name="Argument.metadata">=</stringProp>
+                  </elementProp>
+                </collectionProp>
+              </elementProp>
+              <boolProp name="HTTPSampler.postBodyRaw">true</boolProp>
+              <stringProp name="HTTPSampler.path">${apiBasePath}/api/auth/switch-company</stringProp>
+              <stringProp name="HTTPSampler.method">POST</stringProp>
+              <boolProp name="HTTPSampler.follow_redirects">true</boolProp>
+              <boolProp name="HTTPSampler.auto_redirects">false</boolProp>
+              <boolProp name="HTTPSampler.use_keepalive">true</boolProp>
+              <boolProp name="HTTPSampler.DO_MULTIPART_POST">false</boolProp>
+            </HTTPSamplerProxy>
+            <hashTree>
+              <HeaderManager guiclass="HeaderPanel" testclass="HeaderManager" testname="Switch Company Headers" enabled="true">
+                <collectionProp name="HeaderManager.headers">
+                  <elementProp name="content-type" elementType="Header">
+                    <stringProp name="Header.name">Content-Type</stringProp>
+                    <stringProp name="Header.value">application/json</stringProp>
+                  </elementProp>
+                </collectionProp>
+              </HeaderManager>
+              <hashTree />
+              <JSONPostProcessor guiclass="JSONPostProcessorGui" testclass="JSONPostProcessor" testname="Extract companyId after switch" enabled="true">
+                <stringProp name="JSONPostProcessor.referenceNames">companyId</stringProp>
+                <stringProp name="JSONPostProcessor.jsonPathExprs">$.user.companyId</stringProp>
+                <stringProp name="JSONPostProcessor.match_numbers">1</stringProp>
+                <stringProp name="JSONPostProcessor.defaultValues"></stringProp>
+                <stringProp name="JSONPostProcessor.compute_concat">false</stringProp>
+              </JSONPostProcessor>
+              <hashTree />
+            </hashTree>
           </hashTree>
         </hashTree>
         <HTTPSamplerProxy guiclass="HttpTestSampleGui" testclass="HTTPSamplerProxy" testname="GET /api/invoices" enabled="true">
