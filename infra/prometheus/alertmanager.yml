@@ -1,0 +1,15 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: oncall-webhook
+  group_by: ['alertname', 'job', 'service']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 2h
+
+receivers:
+  - name: oncall-webhook
+    webhook_configs:
+      - url: http://oncall-webhook-mock:8080/alerts
+        send_resolved: true

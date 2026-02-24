@@ -95,7 +95,7 @@ services:
     restart: unless-stopped
     profiles: ['observability']
     depends_on:
-      - redis-exporter
+      - alertmanager
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=15d'
@@ -103,8 +103,54 @@ services:
       - '9090:9090'
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./infra/prometheus/slo-alerts.yml:/etc/prometheus/slo-alerts.yml:ro
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: sega-alertmanager
+    restart: unless-stopped
+    profiles: ['observability']
+    depends_on:
+      - oncall-webhook-mock
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    ports:
+      - '9093:9093'
+    volumes:
+      - ./infra/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    container_name: sega-grafana
+    restart: unless-stopped
+    profiles: ['observability']
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/sega-slo-overview.json
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./infra/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - sega_grafana_data:/var/lib/grafana
+
+  oncall-webhook-mock:
+    image: mendhak/http-https-echo:31
+    container_name: sega-oncall-webhook-mock
+    restart: unless-stopped
+    profiles: ['observability']
+    environment:
+      HTTP_PORT: 8080
+    ports:
+      - '18080:8080'
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.16.1
@@ -149,3 +195,4 @@ volumes:
   sega_pgdata:
   sega_minio_data:
   sega_esdata:
+  sega_grafana_data:

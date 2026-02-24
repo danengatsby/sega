@@ -57,6 +57,7 @@ export interface User {
   role: Role;
   mustChangePassword: boolean;
   mfaEnabled?: boolean;
+  companyOnboardingRequired?: boolean;
   companyId: string;
   companyCode: string;
   companyName: string;

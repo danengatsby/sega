@@ -1,0 +1,111 @@
+name: Observability Config
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  observability-config:
+    name: Observability Config
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required files exist
+        run: |
+          test -f infra/prometheus/prometheus.yml
+          test -f infra/prometheus/slo-alerts.yml
+          test -f infra/prometheus/alertmanager.yml
+          test -f infra/grafana/dashboards/sega-slo-overview.json
+          test -f infra/grafana/provisioning/datasources/prometheus.yml
+          test -f infra/grafana/provisioning/dashboards/dashboards.yml
+
+      - name: Resolve compose command
+        run: |
+          if docker compose version >/dev/null 2>&1; then
+            echo "COMPOSE_CMD=docker compose" >> "${GITHUB_ENV}"
+          elif docker-compose version >/dev/null 2>&1; then
+            echo "COMPOSE_CMD=docker-compose" >> "${GITHUB_ENV}"
+          else
+            echo "Neither 'docker compose' nor 'docker-compose' is available."
+            exit 1
+          fi
+        shell: bash
+
+      - name: Validate compose profile rendering
+        run: ${COMPOSE_CMD} --profile observability config > /tmp/observability-compose.rendered.yml
+        shell: bash
+
+      - name: Validate Prometheus config + rules
+        run: |
+          docker run --rm \
+            --entrypoint promtool \
+            -v "$PWD/infra/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v2.55.1 \
+            check config /etc/prometheus/prometheus.yml
+
+          docker run --rm \
+            --entrypoint promtool \
+            -v "$PWD/infra/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v2.55.1 \
+            check rules /etc/prometheus/slo-alerts.yml
+
+      - name: Validate Alertmanager config
+        run: |
+          docker run --rm \
+            --entrypoint amtool \
+            -v "$PWD/infra/prometheus:/etc/alertmanager:ro" \
+            prom/alertmanager:v0.27.0 \
+            check-config /etc/alertmanager/alertmanager.yml
+
+      - name: Validate Grafana dashboard JSON
+        run: |
+          jq -e '.title == "SEGA SLO Overview" and (.panels | type == "array" and length > 0)' infra/grafana/dashboards/sega-slo-overview.json
+
+      - name: Boot observability profile
+        run: |
+          ${COMPOSE_CMD} --profile observability up -d oncall-webhook-mock alertmanager prometheus grafana
+        shell: bash
+
+      - name: Probe service health endpoints
+        run: |
+          for i in {1..60}; do
+            prom_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9090/-/ready || true)
+            alert_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:9093/-/ready || true)
+            grafana_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/api/health || true)
+            mock_code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080 || true)
+
+            if [ "$prom_code" = "200" ] && [ "$alert_code" = "200" ] && [ "$grafana_code" = "200" ] && [ "$mock_code" = "200" ]; then
+              exit 0
+            fi
+
+            sleep 2
+          done
+
+          echo "Observability stack health checks failed."
+          ${COMPOSE_CMD} --profile observability ps || true
+          ${COMPOSE_CMD} --profile observability logs --tail=200 prometheus alertmanager grafana oncall-webhook-mock || true
+          exit 1
+        shell: bash
+
+      - name: Upload observability rendered config
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: observability-config
+          path: /tmp/observability-compose.rendered.yml
+          if-no-files-found: warn
+
+      - name: Shutdown observability profile
+        if: always()
+        run: ${COMPOSE_CMD} --profile observability down
+        shell: bash
