@@ -605,6 +605,7 @@ Validările automate rulează prin workflow-urile:
 - `.github/workflows/security-gates.yml` (dependency scan + secret scan, gate blocant la severitate HIGH/CRITICAL)
 - `.github/workflows/openapi-contract.yml` (generare + validare OpenAPI 3.0, inclusiv acoperire 100% endpoint-uri critice)
 - `.github/workflows/performance-kpi.yml` (seed KPI + k6 + JMeter cu bugete p95/p99 blocante)
+- `.github/workflows/frontend-tests.yml` (build frontend pe PR/push pentru validarea integrării UI)
 - `.github/workflows/dr-restore-drill.yml` (backup + restore + validare DR, programat lunar + manual)
 - `.github/workflows/observability-config.yml` (validare config Prometheus/Alertmanager/Grafana + docker-compose observability)
 
@@ -615,9 +616,18 @@ GITHUB_TOKEN=<token-cu-admin-repo> ./scripts/github-enforce-security-gates.sh ow
 ```
 
 Scriptul aplică branch protection pe `main`/`master` (dacă există) și setează check-urile obligatorii:
-`ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`.
+`ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`, `Frontend Tests`, `Observability Config`, `Release Checklist` (doar dacă workflow-ul există în repo).
 
-Workflow-urile de gate (`ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`) se execută la:
+Notă: implicit scriptul selectează automat doar check-urile preferate care sunt disponibile în workflow-urile curente ale repository-ului (evită blocaje când un workflow nu este încă prezent pe `main`).
+
+Override opțional pentru lista de required checks:
+
+```bash
+REQUIRED_CONTEXTS_JSON='["ANAF Smoke","Security Gates","OpenAPI Contract","Performance KPI","Release Checklist"]' \
+GITHUB_TOKEN=<token-cu-admin-repo> ./scripts/github-enforce-security-gates.sh owner/repo
+```
+
+Workflow-urile de gate (`ANAF Smoke`, `Security Gates`, `OpenAPI Contract`, `Performance KPI`, `Frontend Tests`, `Observability Config`) se execută la:
 
 - `push` pe `main`/`master`
 - `pull_request`

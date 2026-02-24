@@ -18,13 +18,74 @@ if [[ "${REPO_SLUG}" != */* ]]; then
   exit 1
 fi
 
-REQUIRED_CONTEXTS_JSON='["ANAF Smoke","Security Gates","OpenAPI Contract","Performance KPI"]'
+PREFERRED_REQUIRED_CONTEXTS=(
+  "ANAF Smoke"
+  "Security Gates"
+  "OpenAPI Contract"
+  "Performance KPI"
+  "Frontend Tests"
+  "Observability Config"
+  "Release Checklist"
+)
+REQUIRED_CONTEXTS_JSON="${REQUIRED_CONTEXTS_JSON:-}"
 BRANCHES=("main" "master")
 
 api_url() {
   local path="$1"
   printf "https://api.github.com%s" "${path}"
 }
+
+fetch_workflow_names() {
+  local response_file="/tmp/sega-workflows.json"
+  local code
+  code="$(
+    curl -sS -o "${response_file}" -w '%{http_code}' \
+      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+      -H "Accept: application/vnd.github+json" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "$(api_url "/repos/${REPO_SLUG}/actions/workflows?per_page=100")"
+  )"
+
+  if [[ "${code}" != "200" ]]; then
+    echo "Failed to list workflows (HTTP ${code})."
+    cat "${response_file}" || true
+    exit 1
+  fi
+
+  jq -r '.workflows[].name' "${response_file}"
+}
+
+if [[ -z "${REQUIRED_CONTEXTS_JSON}" ]]; then
+  mapfile -t available_workflows < <(fetch_workflow_names)
+  declare -A available_set=()
+  for name in "${available_workflows[@]}"; do
+    available_set["${name}"]=1
+  done
+
+  selected_contexts=()
+  missing_contexts=()
+  for context in "${PREFERRED_REQUIRED_CONTEXTS[@]}"; do
+    if [[ -n "${available_set[${context}]:-}" ]]; then
+      selected_contexts+=("${context}")
+    else
+      missing_contexts+=("${context}")
+    fi
+  done
+
+  if [[ ${#selected_contexts[@]} -eq 0 ]]; then
+    echo "No preferred required checks are available in repository workflows."
+    echo "Preferred list: ${PREFERRED_REQUIRED_CONTEXTS[*]}"
+    exit 1
+  fi
+
+  REQUIRED_CONTEXTS_JSON="$(
+    printf '%s\n' "${selected_contexts[@]}" | jq -R . | jq -s .
+  )"
+
+  if [[ ${#missing_contexts[@]} -gt 0 ]]; then
+    echo "Skipping unavailable checks: ${missing_contexts[*]}"
+  fi
+fi
 
 branch_exists() {
   local branch="$1"
@@ -98,7 +159,9 @@ apply_protection() {
     exit 1
   fi
 
-  echo "Protected branch '${branch}' with required checks: ANAF Smoke, Security Gates, OpenAPI Contract, Performance KPI"
+  local contexts_print
+  contexts_print="$(echo "${REQUIRED_CONTEXTS_JSON}" | jq -r 'join(", ")')"
+  echo "Protected branch '${branch}' with required checks: ${contexts_print}"
 }
 
 echo "Applying branch protection on ${REPO_SLUG}..."
