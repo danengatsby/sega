@@ -373,6 +373,52 @@
         }
       }
     },
+    "/api/invoices/export/pdf": {
+      "get": {
+        "tags": [
+          "Invoices"
+        ],
+        "summary": "Read invoices export pdf",
+        "operationId": "getApiInvoicesExportPdf",
+        "description": "Contract OpenAPI auto-generat pentru GET /api/invoices/export/pdf.",
+        "security": [
+          {
+            "cookieAuth": []
+          },
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Operație procesată cu succes."
+          },
+          "400": {
+            "description": "Cererea este invalidă."
+          },
+          "401": {
+            "description": "Autentificare necesară sau token invalid."
+          },
+          "403": {
+            "description": "Permisiuni insuficiente pentru această operațiune."
+          },
+          "404": {
+            "description": "Resursa solicitată nu există."
+          },
+          "409": {
+            "description": "Conflict de stare pentru resursa solicitată."
+          },
+          "429": {
+            "description": "Limită de rată depășită."
+          },
+          "500": {
+            "description": "Eroare internă."
+          }
+        },
+        "x-source": "routes/invoices",
+        "x-critical": false
+      }
+    },
     "/metrics": {
       "get": {
         "tags": [

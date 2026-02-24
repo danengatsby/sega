@@ -10,6 +10,7 @@ import { PERMISSIONS } from '../lib/rbac.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { buildRevisalExport } from '../services/revisal-service.js';
 import { parsePeriod } from '../utils/period.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -54,6 +55,44 @@ function parseListQuery(raw: unknown): z.infer<typeof listQuerySchema> {
   return parsed.data;
 }
 
+function channelLabel(channel: RevisalDeliveryChannel | null): string {
+  if (!channel) {
+    return '—';
+  }
+
+  switch (channel) {
+    case RevisalDeliveryChannel.WEB_PORTAL:
+      return 'Portal Revisal';
+    case RevisalDeliveryChannel.EMAIL:
+      return 'Email';
+    case RevisalDeliveryChannel.SFTP:
+      return 'SFTP';
+    case RevisalDeliveryChannel.MANUAL_UPLOAD:
+      return 'Upload manual';
+    case RevisalDeliveryChannel.OTHER:
+      return 'Alt canal';
+    default:
+      return channel;
+  }
+}
+
+function statusLabel(status: RevisalDeliveryStatus): string {
+  switch (status) {
+    case RevisalDeliveryStatus.GENERATED:
+      return 'Generat';
+    case RevisalDeliveryStatus.DELIVERED:
+      return 'Livrat';
+    case RevisalDeliveryStatus.FAILED:
+      return 'Eroare';
+    default:
+      return status;
+  }
+}
+
+function toCount(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
 router.get('/exports', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req, res) => {
   const query = parseListQuery(req.query);
   if (query.period) {
@@ -95,6 +134,90 @@ router.get('/exports', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req,
   });
 
   res.json(deliveries);
+});
+
+router.get('/exports/pdf', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req, res) => {
+  const query = parseListQuery(req.query);
+  if (query.period) {
+    parsePeriod(query.period);
+  }
+
+  const companyId = req.user!.companyId!;
+  const [company, deliveries] = await Promise.all([
+    prisma.company.findUnique({
+      where: {
+        id: companyId,
+      },
+      select: {
+        code: true,
+        name: true,
+      },
+    }),
+    prisma.revisalDelivery.findMany({
+      where: {
+        companyId,
+        ...(query.period ? { period: query.period } : {}),
+        ...(query.status ? { status: query.status } : {}),
+      },
+      orderBy: [{ createdAt: 'desc' }],
+      take: query.limit,
+      select: {
+        period: true,
+        deliveryReference: true,
+        status: true,
+        channel: true,
+        deliveredAt: true,
+        receiptNumber: true,
+        employeeCount: true,
+        xmlChecksum: true,
+        validationPerformed: true,
+        validationPassed: true,
+        validationErrors: true,
+        validationWarnings: true,
+        createdAt: true,
+      },
+    }),
+  ]);
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const deliveredCount = deliveries.filter((delivery) => delivery.status === RevisalDeliveryStatus.DELIVERED).length;
+  const failedCount = deliveries.filter((delivery) => delivery.status === RevisalDeliveryStatus.FAILED).length;
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista exporturi Revisal',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Exporturi: ${deliveries.length} | Livrate: ${deliveredCount} | Erori: ${failedCount}`,
+    '',
+    'Perioada | Referinta | Status | Canal | Angajati | Generat | Livrat | Recipisa | Validare',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...deliveries.map((delivery) => {
+      const warningCount = toCount(delivery.validationWarnings);
+      const errorCount = toCount(delivery.validationErrors);
+      const validationLabel = delivery.validationPerformed
+        ? delivery.validationPassed
+          ? 'XSD OK'
+          : `XSD NOK (${errorCount})`
+        : 'XSD N/A';
+
+      const warningsLabel = warningCount > 0 ? `, Warn ${warningCount}` : '';
+
+      return `${delivery.period} | ${delivery.deliveryReference} | ${statusLabel(delivery.status)} | ${channelLabel(
+        delivery.channel,
+      )} | ${delivery.employeeCount} | ${delivery.createdAt.toLocaleString('ro-RO')} | ${
+        delivery.deliveredAt ? delivery.deliveredAt.toLocaleString('ro-RO') : '-'
+      } | ${delivery.receiptNumber ?? '-'} | ${validationLabel}${warningsLabel}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="exporturi-revisal-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
 });
 
 router.get('/exports/:id', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req, res) => {

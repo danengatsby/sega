@@ -11,6 +11,8 @@ yarn-error.log*
 apps/backend/dist
 apps/frontend/dist
 apps/backend/perf/results
+apps/backend/dr/backups
+apps/backend/dr/reports
 
 .DS_Store
 

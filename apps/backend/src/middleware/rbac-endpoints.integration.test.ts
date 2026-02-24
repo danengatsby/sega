@@ -89,6 +89,20 @@ const ENDPOINT_SCENARIOS: EndpointScenario[] = [
     allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.CASHIER, Role.MANAGER, Role.AUDITOR],
   },
   {
+    name: 'GET /e-transport/shipments',
+    method: 'GET',
+    path: '/e-transport/shipments',
+    requiredPermissions: [PERMISSIONS.E_TRANSPORT_READ],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.CASHIER, Role.MANAGER, Role.AUDITOR],
+  },
+  {
+    name: 'POST /e-transport/shipments',
+    method: 'POST',
+    path: '/e-transport/shipments',
+    requiredPermissions: [PERMISSIONS.E_TRANSPORT_WRITE],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER],
+  },
+  {
     name: 'POST /stocks/items',
     method: 'POST',
     path: '/stocks/items',

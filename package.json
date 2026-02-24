@@ -30,7 +30,10 @@
     "perf:seed": "npm run perf:seed -w backend",
     "perf:k6": "npm run perf:k6 -w backend",
     "perf:jmeter": "npm run perf:jmeter -w backend",
-    "perf:kpi": "npm run perf:seed && npm run perf:k6"
+    "perf:kpi": "npm run perf:seed && npm run perf:k6",
+    "dr:backup": "bash scripts/dr/backup.sh",
+    "dr:restore": "bash scripts/dr/restore.sh",
+    "dr:drill": "bash scripts/dr/drill.sh"
   },
   "keywords": [],
   "author": "",

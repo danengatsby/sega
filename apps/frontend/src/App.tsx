@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL, ApiError, apiRequest, setApiCompanyContext } from './api';
-import { ROLE_LABEL, type ModuleKey } from './app/navigation';
+import { type ModuleKey } from './app/navigation';
 import { CompanyOnboardingScreen } from './components/auth/CompanyOnboardingScreen';
 import { LoginScreen } from './components/auth/LoginScreen';
 import { MfaEnrollmentScreen } from './components/auth/MfaEnrollmentScreen';
@@ -8,6 +8,13 @@ import { PasswordChangeScreen } from './components/auth/PasswordChangeScreen';
 import { useAuthStorage } from './hooks/useAuthStorage';
 import { usePermissions } from './hooks/usePermissions';
 import { fmtCurrency, localDateTime, toNum } from './lib/format';
+import {
+  type OfflineWriteMethod,
+  type OfflineWriteOperation,
+  buildOfflineWriteOperation,
+  persistOfflineWriteQueue,
+  readOfflineWriteQueue,
+} from './lib/offline-queue';
 import { AccountsPage } from './pages/AccountsPage';
 import { AssetsPage } from './pages/AssetsPage';
 import { AuditPage } from './pages/AuditPage';
@@ -70,8 +77,104 @@ interface MfaSetupPayload {
   accountName: string;
 }
 
+interface LoginHintCredentials {
+  label: string;
+  email: string;
+  password: string;
+}
+
+interface WriteExecutionResult {
+  queued: boolean;
+}
+
 const MODULE_CACHE_TTL_MS = 30_000;
-const MFA_REQUIRED_ROLES = new Set<User['role']>(['ADMIN']);
+const MFA_REQUIRED_ROLES = new Set<User['role']>(['ADMIN', 'CHIEF_ACCOUNTANT']);
+const FIXED_PERIOD_YEAR = 2026;
+const MONTH_OPTIONS = [
+  { value: '01', label: 'Ian' },
+  { value: '02', label: 'Feb' },
+  { value: '03', label: 'Mar' },
+  { value: '04', label: 'Apr' },
+  { value: '05', label: 'Mai' },
+  { value: '06', label: 'Iun' },
+  { value: '07', label: 'Iul' },
+  { value: '08', label: 'Aug' },
+  { value: '09', label: 'Sep' },
+  { value: '10', label: 'Oct' },
+  { value: '11', label: 'Noi' },
+  { value: '12', label: 'Dec' },
+];
+
+function resolveMaxEnabledMonthForFixedYear(): number {
+  const now = new Date();
+  if (now.getFullYear() > FIXED_PERIOD_YEAR) {
+    return 12;
+  }
+  if (now.getFullYear() < FIXED_PERIOD_YEAR) {
+    return 1;
+  }
+  return now.getMonth() + 1;
+}
+
+function clampAnafPeriod(period: string): string {
+  const maxEnabledMonth = resolveMaxEnabledMonthForFixedYear();
+  const nowMonth = String(maxEnabledMonth).padStart(2, '0');
+  const [_, monthPart = ''] = period.split('-');
+  const monthNumber = Number(monthPart);
+
+  if (!Number.isInteger(monthNumber)) {
+    return `${FIXED_PERIOD_YEAR}-${nowMonth}`;
+  }
+
+  const normalizedMonth = Math.min(Math.max(monthNumber, 1), maxEnabledMonth);
+  return `${FIXED_PERIOD_YEAR}-${String(normalizedMonth).padStart(2, '0')}`;
+}
+
+function resolvePeriodParts(period: string): { year: string; month: string } {
+  const now = new Date();
+  const defaultYear = String(now.getFullYear());
+  const defaultMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const [yearPart = '', monthPart = ''] = period.split('-');
+
+  const year = /^\d{4}$/.test(yearPart) ? yearPart : defaultYear;
+  const month = /^\d{2}$/.test(monthPart) ? monthPart : defaultMonth;
+
+  return { year, month };
+}
+
+function resolveLoginHints(): LoginHintCredentials[] {
+  const adminEmail = (import.meta.env.VITE_LOGIN_HINT_ADMIN_EMAIL as string | undefined)?.trim() ?? '';
+  const adminPassword = (import.meta.env.VITE_LOGIN_HINT_ADMIN_PASSWORD as string | undefined)?.trim() ?? '';
+  const accountantLabel = (import.meta.env.VITE_LOGIN_HINT_ACCOUNTANT_LABEL as string | undefined)?.trim() || 'Contabil';
+  const accountantEmail =
+    (import.meta.env.VITE_LOGIN_HINT_ACCOUNTANT_EMAIL as string | undefined)?.trim() ??
+    ((import.meta.env.VITE_LOGIN_HINT_USER_EMAIL as string | undefined)?.trim() ?? '');
+  const accountantPassword =
+    (import.meta.env.VITE_LOGIN_HINT_ACCOUNTANT_PASSWORD as string | undefined)?.trim() ??
+    ((import.meta.env.VITE_LOGIN_HINT_USER_PASSWORD as string | undefined)?.trim() ?? '');
+
+  const hints: LoginHintCredentials[] = [];
+
+  if (adminEmail || adminPassword) {
+    hints.push({
+      label: 'Admin',
+      email: adminEmail || 'n/a',
+      password: adminPassword || 'n/a',
+    });
+  }
+
+  if (accountantEmail || accountantPassword) {
+    hints.push({
+      label: accountantLabel,
+      email: accountantEmail || 'n/a',
+      password: accountantPassword || 'n/a',
+    });
+  }
+
+  return hints;
+}
+
+const LOGIN_HINTS = resolveLoginHints();
 
 function isMfaEnrollmentRequired(activeUser: User | null): boolean {
   if (!activeUser) {
@@ -94,6 +197,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [error, setError] = useState<string>('');
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine);
+  const [offlineWriteQueue, setOfflineWriteQueue] = useState<OfflineWriteOperation[]>(() => readOfflineWriteQueue());
+  const [offlineSyncStatus, setOfflineSyncStatus] = useState<'idle' | 'syncing' | 'error'>('idle');
+  const [offlineSyncMessage, setOfflineSyncMessage] = useState('');
 
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -221,7 +328,6 @@ function App() {
     period: new Date().toISOString().slice(0, 7),
   });
   const [revisalGenerateForm, setRevisalGenerateForm] = useState({
-    period: new Date().toISOString().slice(0, 7),
     deliveryReference: '',
   });
   const [revisalDeliverForm, setRevisalDeliverForm] = useState<{
@@ -247,7 +353,7 @@ function App() {
   const [depreciationForm, setDepreciationForm] = useState({
     period: new Date().toISOString().slice(0, 7),
   });
-  const [anafPeriod, setAnafPeriod] = useState(new Date().toISOString().slice(0, 7));
+  const [anafPeriod, setAnafPeriod] = useState(() => clampAnafPeriod(''));
   const [purchasesDashboardFilter, setPurchasesDashboardFilter] = useState({
     asOf: new Date().toISOString().slice(0, 10),
     topSuppliers: '5',
@@ -269,6 +375,10 @@ function App() {
 
   const { canRead, canAction, visibleMenuItems, visibleMenuKeys } = usePermissions(user);
   const availableCompanies = user?.availableCompanies ?? [];
+  const periodParts = useMemo(() => resolvePeriodParts(anafPeriod), [anafPeriod]);
+  const maxEnabledMonth = useMemo(() => resolveMaxEnabledMonthForFixedYear(), []);
+  const showConnectivityBanner =
+    !isOnline || offlineWriteQueue.length > 0 || offlineSyncStatus === 'syncing' || offlineSyncStatus === 'error';
 
   const stats = useMemo(() => {
     const openInvoices = invoices.filter((invoice) => invoice.status !== 'PAID').length;
@@ -664,7 +774,7 @@ function App() {
       if (targetModule === 'revisal') {
         const deliveryData = await fetchIfAllowed(
           canRead.payroll,
-          () => apiRequest<RevisalDelivery[]>('/revisal/exports?limit=120'),
+          () => apiRequest<RevisalDelivery[]>('/revisal/exports?limit=100'),
           [] as RevisalDelivery[],
         );
         setRevisalExports(deliveryData);
@@ -742,8 +852,56 @@ function App() {
   }, [user?.companyId]);
 
   useEffect(() => {
+    function handleOnline(): void {
+      setIsOnline(true);
+      setOfflineSyncMessage((prev) => (prev ? prev : 'Conexiunea a fost restabilită.'));
+    }
+
+    function handleOffline(): void {
+      setIsOnline(false);
+      setOfflineSyncStatus('idle');
+      setOfflineSyncMessage('Aplicația rulează offline. Operațiunile de scriere vor fi puse în coada locală.');
+    }
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  useEffect(() => {
+    persistOfflineWriteQueue(offlineWriteQueue);
+  }, [offlineWriteQueue]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setOfflineWriteQueue((prev) => prev.filter((operation) => operation.userId === user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user || !isOnline || offlineWriteQueue.length === 0 || offlineSyncStatus === 'syncing') {
+      return;
+    }
+    void syncOfflineWriteQueue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.companyId, isOnline, offlineWriteQueue.length, offlineSyncStatus]);
+
+  useEffect(() => {
     invalidateAllModuleCache();
   }, [user?.id, user?.companyId]);
+
+  useEffect(() => {
+    const normalizedPeriod = clampAnafPeriod(anafPeriod);
+    if (normalizedPeriod !== anafPeriod) {
+      setAnafPeriod(normalizedPeriod);
+    }
+  }, [anafPeriod]);
 
   useEffect(() => {
     if (!isMfaEnrollmentRequired(user)) {
@@ -986,12 +1144,131 @@ function App() {
     });
     setAuthMode('login');
     resetAuthForms();
+    setOfflineWriteQueue([]);
+    setOfflineSyncStatus('idle');
+    setOfflineSyncMessage('');
     clearSession();
   }
 
   async function refreshCurrentModuleAfterWrite(): Promise<void> {
     invalidateAllModuleCache();
     await loadModuleData(moduleKey, { force: true });
+  }
+
+  function enqueueOfflineWrite(params: {
+    path: string;
+    method: OfflineWriteMethod;
+    body: unknown;
+  }): WriteExecutionResult {
+    if (!user) {
+      throw new Error('Sesiunea utilizatorului nu este disponibilă pentru coada offline.');
+    }
+
+    const operation = buildOfflineWriteOperation({
+      userId: user.id,
+      companyId: user.companyId ?? null,
+      path: params.path,
+      method: params.method,
+      body: params.body,
+      moduleKey,
+    });
+
+    setOfflineWriteQueue((prev) => [...prev, operation]);
+    setOfflineSyncMessage('Operațiunea a fost adăugată în coada locală și se va sincroniza la reconectare.');
+    if (offlineSyncStatus !== 'syncing') {
+      setOfflineSyncStatus('idle');
+    }
+    return { queued: true };
+  }
+
+  async function submitWriteOrQueue(
+    path: string,
+    body: unknown,
+    method: OfflineWriteMethod = 'POST',
+  ): Promise<WriteExecutionResult> {
+    if (!user) {
+      throw new Error('Sesiunea utilizatorului nu este disponibilă.');
+    }
+
+    if (!isOnline) {
+      return enqueueOfflineWrite({ path, method, body });
+    }
+
+    try {
+      await apiRequest(path, {
+        method,
+        body,
+        companyId: user.companyId,
+      });
+      return { queued: false };
+    } catch (err) {
+      if (err instanceof ApiError) {
+        throw err;
+      }
+      return enqueueOfflineWrite({ path, method, body });
+    }
+  }
+
+  async function syncOfflineWriteQueue(options: { manual?: boolean } = {}): Promise<void> {
+    if (!user) {
+      return;
+    }
+
+    if (!isOnline) {
+      if (options.manual) {
+        setOfflineSyncStatus('error');
+        setOfflineSyncMessage('Sincronizarea nu poate porni cât timp aplicația este offline.');
+      }
+      return;
+    }
+
+    if (offlineSyncStatus === 'syncing') {
+      return;
+    }
+
+    const queueForUser = offlineWriteQueue.filter((operation) => operation.userId === user.id);
+    if (queueForUser.length === 0) {
+      setOfflineSyncStatus('idle');
+      if (options.manual) {
+        setOfflineSyncMessage('Coada locală este goală.');
+      }
+      return;
+    }
+
+    setOfflineSyncStatus('syncing');
+    setOfflineSyncMessage('');
+
+    let processed = 0;
+
+    for (const operation of queueForUser) {
+      try {
+        await apiRequest(operation.path, {
+          method: operation.method,
+          body: operation.body,
+          companyId: operation.companyId,
+        });
+        processed += 1;
+        setOfflineWriteQueue((prev) => prev.filter((item) => item.id !== operation.id));
+      } catch (err) {
+        const message = err instanceof ApiError ? err.message : 'Eroare de conectivitate în timpul sincronizării.';
+        setOfflineSyncStatus('error');
+        setOfflineSyncMessage(message);
+        setError(`Sincronizarea cozii offline a fost oprită: ${message}`);
+        return;
+      }
+    }
+
+    setOfflineSyncStatus('idle');
+    setOfflineSyncMessage(`Sincronizare finalizată: ${processed} operațiuni aplicate.`);
+    if (processed > 0) {
+      await refreshCurrentModuleAfterWrite();
+    }
+  }
+
+  function handleSidebarMonthChange(nextMonth: string): void {
+    const nextPeriod = clampAnafPeriod(`${FIXED_PERIOD_YEAR}-${nextMonth}`);
+    setAnafPeriod(nextPeriod);
+    void loadModuleData(moduleKey, { force: true });
   }
 
   async function switchCompany(nextCompanyId: string): Promise<void> {
@@ -1099,13 +1376,12 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<Account>('/accounts', {
-        method: 'POST',
-        body: accountForm,
-      });
+      const result = await submitWriteOrQueue('/accounts', accountForm);
 
       setAccountForm({ code: '', name: '', type: 'ASSET', currency: 'RON' });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea contul.');
     } finally {
@@ -1123,18 +1399,17 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<Partner>('/partners', {
-        method: 'POST',
-        body: {
-          ...partnerForm,
-          cui: partnerForm.cui || undefined,
-          iban: partnerForm.iban || undefined,
-          email: partnerForm.email || undefined,
-          phone: partnerForm.phone || undefined,
-        },
+      const result = await submitWriteOrQueue('/partners', {
+        ...partnerForm,
+        cui: partnerForm.cui || undefined,
+        iban: partnerForm.iban || undefined,
+        email: partnerForm.email || undefined,
+        phone: partnerForm.phone || undefined,
       });
       setPartnerForm({ name: '', type: 'BOTH', cui: '', iban: '', email: '', phone: '' });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea partenerul.');
     } finally {
@@ -1152,13 +1427,10 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<Employee>('/employees', {
-        method: 'POST',
-        body: {
-          ...employeeForm,
-          grossSalary: Number(employeeForm.grossSalary),
-          personalDeduction: Number(employeeForm.personalDeduction),
-        },
+      const result = await submitWriteOrQueue('/employees', {
+        ...employeeForm,
+        grossSalary: Number(employeeForm.grossSalary),
+        personalDeduction: Number(employeeForm.personalDeduction),
       });
 
       setEmployeeForm({
@@ -1168,7 +1440,9 @@ function App() {
         grossSalary: '8000',
         personalDeduction: '0',
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea angajatul.');
     } finally {
@@ -1186,15 +1460,14 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<PayrollRun>('/payroll/runs/generate', {
-        method: 'POST',
-        body: {
-          period: payrollForm.period,
-          autoPost: true,
-        },
+      const result = await submitWriteOrQueue('/payroll/runs/generate', {
+        period: payrollForm.period,
+        autoPost: true,
       });
 
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut genera statul de salarii.');
     } finally {
@@ -1209,7 +1482,7 @@ function App() {
       return;
     }
 
-    if (!revisalGenerateForm.period) {
+    if (!anafPeriod) {
       setError('Perioada pentru export Revisal este obligatorie.');
       return;
     }
@@ -1218,20 +1491,19 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<RevisalDelivery>('/revisal/exports', {
-        method: 'POST',
-        body: {
-          period: revisalGenerateForm.period,
-          deliveryReference: revisalGenerateForm.deliveryReference.trim() || undefined,
-          reason: 'manual-ui-export',
-        },
+      const result = await submitWriteOrQueue('/revisal/exports', {
+        period: anafPeriod,
+        deliveryReference: revisalGenerateForm.deliveryReference.trim() || undefined,
+        reason: 'manual-ui-export',
       });
 
       setRevisalGenerateForm((prev) => ({
         ...prev,
         deliveryReference: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut genera exportul Revisal.');
     } finally {
@@ -1260,23 +1532,22 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<RevisalDelivery>(`/revisal/exports/${revisalDeliverForm.exportId}/deliver`, {
-        method: 'POST',
-        body: {
-          channel: revisalDeliverForm.channel,
-          deliveredAt: revisalDeliverForm.deliveredAt
-            ? new Date(revisalDeliverForm.deliveredAt).toISOString()
-            : undefined,
-          receiptNumber: revisalDeliverForm.receiptNumber.trim() || undefined,
-          reason: 'manual-ui-delivery-confirm',
-        },
+      const result = await submitWriteOrQueue(`/revisal/exports/${revisalDeliverForm.exportId}/deliver`, {
+        channel: revisalDeliverForm.channel,
+        deliveredAt: revisalDeliverForm.deliveredAt
+          ? new Date(revisalDeliverForm.deliveredAt).toISOString()
+          : undefined,
+        receiptNumber: revisalDeliverForm.receiptNumber.trim() || undefined,
+        reason: 'manual-ui-delivery-confirm',
       });
 
       setRevisalDeliverForm((prev) => ({
         ...prev,
         receiptNumber: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut confirma livrarea Revisal.');
     } finally {
@@ -1339,17 +1610,14 @@ function App() {
     setError('');
 
     try {
-      await apiRequest<Asset>('/assets', {
-        method: 'POST',
-        body: {
-          code: assetForm.code || undefined,
-          name: assetForm.name,
-          value: Number(assetForm.value),
-          residualValue: Number(assetForm.residualValue),
-          depreciationMethod: assetForm.depreciationMethod,
-          startDate: new Date(assetForm.startDate).toISOString(),
-          usefulLifeMonths: Number(assetForm.usefulLifeMonths),
-        },
+      const result = await submitWriteOrQueue('/assets', {
+        code: assetForm.code || undefined,
+        name: assetForm.name,
+        value: Number(assetForm.value),
+        residualValue: Number(assetForm.residualValue),
+        depreciationMethod: assetForm.depreciationMethod,
+        startDate: new Date(assetForm.startDate).toISOString(),
+        usefulLifeMonths: Number(assetForm.usefulLifeMonths),
       });
 
       setAssetForm({
@@ -1361,7 +1629,9 @@ function App() {
         usefulLifeMonths: '60',
         startDate: localDateTime(0),
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea mijlocul fix.');
     } finally {
@@ -1379,14 +1649,13 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/assets/run-depreciation', {
-        method: 'POST',
-        body: {
-          period: depreciationForm.period,
-          autoPost: true,
-        },
+      const result = await submitWriteOrQueue('/assets/run-depreciation', {
+        period: depreciationForm.period,
+        autoPost: true,
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut rula amortizarea.');
     } finally {
@@ -1438,6 +1707,546 @@ function App() {
       window.URL.revokeObjectURL(url);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Exportul a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openAccountsListPdf(): Promise<void> {
+    if (!canRead.accounts) {
+      setError('Nu ai permisiunea de vizualizare pentru planul de conturi.');
+      return;
+    }
+
+    setBusyKey('accounts-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/accounts/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de conturi a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] ?? `plan-conturi-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de conturi a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openJournalEntriesListPdf(): Promise<void> {
+    if (!canRead.journal) {
+      setError('Nu ai permisiunea de vizualizare pentru notele contabile.');
+      return;
+    }
+
+    setBusyKey('journal-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/journal-entries/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de note contabile a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] ?? `note-contabile-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de note contabile a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openPartnersListPdf(): Promise<void> {
+    if (!canRead.partners) {
+      setError('Nu ai permisiunea de vizualizare pentru parteneri.');
+      return;
+    }
+
+    setBusyKey('partners-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/partners/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de parteneri a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] ?? `parteneri-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de parteneri a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openInvoicesListPdf(): Promise<void> {
+    if (!canRead.invoices) {
+      setError('Nu ai permisiunea de vizualizare pentru facturi și încasări.');
+      return;
+    }
+
+    setBusyKey('invoices-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/invoices/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de facturi și încasări a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] ?? `facturi-incasari-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de facturi și încasări a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openPurchasesListPdf(): Promise<void> {
+    if (!canRead.purchases) {
+      setError('Nu ai permisiunea de vizualizare pentru facturi furnizori și plăți.');
+      return;
+    }
+
+    setBusyKey('purchases-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/purchases/invoices/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de facturi furnizori și plăți a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const filename = filenameMatch?.[1] ?? `facturi-furnizori-plati-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de facturi furnizori și plăți a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openStocksListPdf(): Promise<void> {
+    if (!canRead.stocks) {
+      setError('Nu ai permisiunea de vizualizare pentru stocuri.');
+      return;
+    }
+
+    setBusyKey('stocks-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/stocks/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listelor de stocuri a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename = filenameMatch?.[1] ?? `stocuri-miscari-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listelor de stocuri a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openPayrollEmployeesListPdf(): Promise<void> {
+    if (!canRead.payroll) {
+      setError('Nu ai permisiunea de vizualizare pentru angajați.');
+      return;
+    }
+
+    setBusyKey('payroll-employees-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/payroll/export/employees/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de angajați a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename = filenameMatch?.[1] ?? `angajati-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de angajați a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openPayrollRunsListPdf(): Promise<void> {
+    if (!canRead.payroll) {
+      setError('Nu ai permisiunea de vizualizare pentru state.');
+      return;
+    }
+
+    setBusyKey('payroll-runs-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/payroll/export/runs/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de state a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename = filenameMatch?.[1] ?? `state-salarii-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de state a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openRevisalExportsListPdf(): Promise<void> {
+    if (!canRead.payroll) {
+      setError('Nu ai permisiunea de vizualizare pentru exporturile Revisal.');
+      return;
+    }
+
+    setBusyKey('revisal-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/revisal/exports/pdf?limit=100`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea listei de exporturi Revisal a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename = filenameMatch?.[1] ?? `exporturi-revisal-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea listei de exporturi Revisal a eșuat.');
+    } finally {
+      setBusyKey(null);
+    }
+  }
+
+  async function openAssetsListPdf(): Promise<void> {
+    if (!canRead.assets) {
+      setError('Nu ai permisiunea de vizualizare pentru mijloace fixe.');
+      return;
+    }
+
+    setBusyKey('assets-list-pdf');
+    setError('');
+
+    try {
+      const headers = user?.companyId ? { 'x-company-id': user.companyId } : undefined;
+      const response = await fetch(`${API_BASE_URL}/assets/export/pdf`, {
+        credentials: 'include',
+        headers,
+      });
+
+      if (!response.ok) {
+        let message = 'Generarea registrului de mijloace fixe a eșuat.';
+        try {
+          const payload = (await response.json()) as { message?: string };
+          if (payload?.message) {
+            message = payload.message;
+          }
+        } catch {
+          // Ignore non-JSON responses and keep default message.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
+      const contentDisposition = response.headers.get('content-disposition') ?? '';
+      const filenameMatch = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+      const filename = filenameMatch?.[1] ?? `registru-mijloace-fixe-${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank', 'noopener,noreferrer');
+
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+
+      window.setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 60_000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Generarea registrului de mijloace fixe a eșuat.');
     } finally {
       setBusyKey(null);
     }
@@ -1643,13 +2452,10 @@ function App() {
     }));
 
     try {
-      await apiRequest('/journal-entries', {
-        method: 'POST',
-        body: {
-          description: journalForm.description,
-          lines,
-          sourceModule: 'GENERAL_LEDGER',
-        },
+      const result = await submitWriteOrQueue('/journal-entries', {
+        description: journalForm.description,
+        lines,
+        sourceModule: 'GENERAL_LEDGER',
       });
 
       setJournalForm({
@@ -1659,7 +2465,9 @@ function App() {
           { accountId: accounts[0]?.id ?? '', debit: '0', credit: '0', explanation: '' },
         ],
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut salva nota contabilă.');
     } finally {
@@ -1677,17 +2485,14 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/invoices', {
-        method: 'POST',
-        body: {
-          number: invoiceForm.number,
-          partnerId: invoiceForm.partnerId,
-          dueDate: new Date(invoiceForm.dueDate).toISOString(),
-          subtotal: Number(invoiceForm.subtotal),
-          vat: Number(invoiceForm.vat),
-          description: invoiceForm.description || undefined,
-          autoPost: true,
-        },
+      const result = await submitWriteOrQueue('/invoices', {
+        number: invoiceForm.number,
+        partnerId: invoiceForm.partnerId,
+        dueDate: new Date(invoiceForm.dueDate).toISOString(),
+        subtotal: Number(invoiceForm.subtotal),
+        vat: Number(invoiceForm.vat),
+        description: invoiceForm.description || undefined,
+        autoPost: true,
       });
 
       setInvoiceForm({
@@ -1698,7 +2503,9 @@ function App() {
         vat: '190',
         description: '',
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea factura.');
     } finally {
@@ -1716,18 +2523,15 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/purchases/invoices', {
-        method: 'POST',
-        body: {
-          number: supplierInvoiceForm.number,
-          supplierId: supplierInvoiceForm.supplierId,
-          receivedDate: new Date(supplierInvoiceForm.receivedDate).toISOString(),
-          dueDate: new Date(supplierInvoiceForm.dueDate).toISOString(),
-          subtotal: Number(supplierInvoiceForm.subtotal),
-          vat: Number(supplierInvoiceForm.vat),
-          description: supplierInvoiceForm.description || undefined,
-          autoPost: true,
-        },
+      const result = await submitWriteOrQueue('/purchases/invoices', {
+        number: supplierInvoiceForm.number,
+        supplierId: supplierInvoiceForm.supplierId,
+        receivedDate: new Date(supplierInvoiceForm.receivedDate).toISOString(),
+        dueDate: new Date(supplierInvoiceForm.dueDate).toISOString(),
+        subtotal: Number(supplierInvoiceForm.subtotal),
+        vat: Number(supplierInvoiceForm.vat),
+        description: supplierInvoiceForm.description || undefined,
+        autoPost: true,
       });
 
       setSupplierInvoiceForm({
@@ -1739,7 +2543,9 @@ function App() {
         vat: '190',
         description: '',
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea factura de furnizor.');
     } finally {
@@ -1772,13 +2578,12 @@ function App() {
         channel === 'MOBILE'
           ? `/purchases/invoices/${invoice.id}/approve/mobile`
           : `/purchases/invoices/${invoice.id}/approve`;
-      await apiRequest(endpoint, {
-        method: 'POST',
-        body: {
-          note: note.trim().length > 0 ? note.trim() : undefined,
-        },
+      const result = await submitWriteOrQueue(endpoint, {
+        note: note.trim().length > 0 ? note.trim() : undefined,
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut aproba factura furnizor.');
     } finally {
@@ -1804,13 +2609,12 @@ function App() {
     setBusyKey('supplier-reject');
     setError('');
     try {
-      await apiRequest(`/purchases/invoices/${invoice.id}/reject`, {
-        method: 'POST',
-        body: {
-          reason: reason.trim(),
-        },
+      const result = await submitWriteOrQueue(`/purchases/invoices/${invoice.id}/reject`, {
+        reason: reason.trim(),
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut respinge factura furnizor.');
     } finally {
@@ -1833,14 +2637,11 @@ function App() {
     setBusyKey('purchase-delegation');
     setError('');
     try {
-      await apiRequest('/purchases/delegations', {
-        method: 'POST',
-        body: {
-          fromUserId: purchaseDelegationForm.fromUserId || undefined,
-          toUserId: purchaseDelegationForm.toUserId,
-          endsAt: new Date(purchaseDelegationForm.endsAt).toISOString(),
-          reason: purchaseDelegationForm.reason || undefined,
-        },
+      const result = await submitWriteOrQueue('/purchases/delegations', {
+        fromUserId: purchaseDelegationForm.fromUserId || undefined,
+        toUserId: purchaseDelegationForm.toUserId,
+        endsAt: new Date(purchaseDelegationForm.endsAt).toISOString(),
+        reason: purchaseDelegationForm.reason || undefined,
       });
 
       setPurchaseDelegationForm((prev) => ({
@@ -1849,7 +2650,9 @@ function App() {
         endsAt: localDateTime(7),
         reason: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea delegarea de aprobare.');
     } finally {
@@ -1867,18 +2670,15 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/stocks/items', {
-        method: 'POST',
-        body: {
-          code: stockItemForm.code,
-          name: stockItemForm.name,
-          unit: stockItemForm.unit,
-          valuationMethod: stockItemForm.valuationMethod,
-          minStockQty: Number(stockItemForm.minStockQty),
-          initialQuantity: Number(stockItemForm.initialQuantity),
-          initialUnitCost:
-            stockItemForm.initialUnitCost.trim().length > 0 ? Number(stockItemForm.initialUnitCost) : undefined,
-        },
+      const result = await submitWriteOrQueue('/stocks/items', {
+        code: stockItemForm.code,
+        name: stockItemForm.name,
+        unit: stockItemForm.unit,
+        valuationMethod: stockItemForm.valuationMethod,
+        minStockQty: Number(stockItemForm.minStockQty),
+        initialQuantity: Number(stockItemForm.initialQuantity),
+        initialUnitCost:
+          stockItemForm.initialUnitCost.trim().length > 0 ? Number(stockItemForm.initialUnitCost) : undefined,
       });
 
       setStockItemForm({
@@ -1890,7 +2690,9 @@ function App() {
         initialQuantity: '0',
         initialUnitCost: '',
       });
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut crea articolul de stoc.');
     } finally {
@@ -1908,20 +2710,17 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/stocks/nir', {
-        method: 'POST',
-        body: {
-          date: new Date(nirForm.date).toISOString(),
-          documentNumber: nirForm.documentNumber || undefined,
-          lines: [
-            {
-              itemId: nirForm.itemId,
-              quantity: Number(nirForm.quantity),
-              unitCost: Number(nirForm.unitCost),
-              note: nirForm.note || undefined,
-            },
-          ],
-        },
+      const result = await submitWriteOrQueue('/stocks/nir', {
+        date: new Date(nirForm.date).toISOString(),
+        documentNumber: nirForm.documentNumber || undefined,
+        lines: [
+          {
+            itemId: nirForm.itemId,
+            quantity: Number(nirForm.quantity),
+            unitCost: Number(nirForm.unitCost),
+            note: nirForm.note || undefined,
+          },
+        ],
       });
 
       setNirForm((prev) => ({
@@ -1931,7 +2730,9 @@ function App() {
         unitCost: '0',
         note: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut înregistra NIR-ul.');
     } finally {
@@ -1949,19 +2750,16 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/stocks/consumptions', {
-        method: 'POST',
-        body: {
-          date: new Date(consumptionForm.date).toISOString(),
-          documentNumber: consumptionForm.documentNumber || undefined,
-          lines: [
-            {
-              itemId: consumptionForm.itemId,
-              quantity: Number(consumptionForm.quantity),
-              note: consumptionForm.note || undefined,
-            },
-          ],
-        },
+      const result = await submitWriteOrQueue('/stocks/consumptions', {
+        date: new Date(consumptionForm.date).toISOString(),
+        documentNumber: consumptionForm.documentNumber || undefined,
+        lines: [
+          {
+            itemId: consumptionForm.itemId,
+            quantity: Number(consumptionForm.quantity),
+            note: consumptionForm.note || undefined,
+          },
+        ],
       });
 
       setConsumptionForm((prev) => ({
@@ -1970,7 +2768,9 @@ function App() {
         quantity: '1',
         note: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut înregistra consumul.');
     } finally {
@@ -1988,20 +2788,17 @@ function App() {
     setError('');
 
     try {
-      await apiRequest('/stocks/inventory', {
-        method: 'POST',
-        body: {
-          date: new Date(inventoryForm.date).toISOString(),
-          documentNumber: inventoryForm.documentNumber || undefined,
-          lines: [
-            {
-              itemId: inventoryForm.itemId,
-              countedQuantity: Number(inventoryForm.countedQuantity),
-              unitCost: inventoryForm.unitCost.trim().length > 0 ? Number(inventoryForm.unitCost) : undefined,
-              note: inventoryForm.note || undefined,
-            },
-          ],
-        },
+      const result = await submitWriteOrQueue('/stocks/inventory', {
+        date: new Date(inventoryForm.date).toISOString(),
+        documentNumber: inventoryForm.documentNumber || undefined,
+        lines: [
+          {
+            itemId: inventoryForm.itemId,
+            countedQuantity: Number(inventoryForm.countedQuantity),
+            unitCost: inventoryForm.unitCost.trim().length > 0 ? Number(inventoryForm.unitCost) : undefined,
+            note: inventoryForm.note || undefined,
+          },
+        ],
       });
 
       setInventoryForm((prev) => ({
@@ -2011,7 +2808,9 @@ function App() {
         unitCost: '',
         note: '',
       }));
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Nu s-a putut aplica inventarul.');
     } finally {
@@ -2080,19 +2879,18 @@ function App() {
       const endpoint =
         dialog.flow === 'INVOICE_COLLECTION' ? `/invoices/${dialog.invoiceId}/pay` : `/purchases/invoices/${dialog.invoiceId}/pay`;
 
-      await apiRequest(endpoint, {
-        method: 'POST',
-        body: {
-          amount,
-          method: dialog.method,
-          reference: dialog.reference || undefined,
-          date: new Date(dialog.date).toISOString(),
-          autoPost: dialog.autoPost,
-        },
+      const result = await submitWriteOrQueue(endpoint, {
+        amount,
+        method: dialog.method,
+        reference: dialog.reference || undefined,
+        date: new Date(dialog.date).toISOString(),
+        autoPost: dialog.autoPost,
       });
 
       closePaymentDialog();
-      await refreshCurrentModuleAfterWrite();
+      if (!result.queued) {
+        await refreshCurrentModuleAfterWrite();
+      }
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Nu s-a putut procesa plata.';
       setPaymentDialogError(message);
@@ -2123,6 +2921,7 @@ function App() {
         confirmPassword={registerForm.confirmPassword}
         mfaCode={loginForm.mfaCode}
         mfaRequired={loginRequiresMfaCode}
+        loginHints={LOGIN_HINTS}
         busy={busyKey === 'login' || busyKey === 'register'}
         error={error}
         onModeChange={(mode) => {
@@ -2396,6 +3195,7 @@ function App() {
           revisalGenerateForm={revisalGenerateForm}
           setRevisalGenerateForm={setRevisalGenerateForm}
           generateRevisalExport={generateRevisalExport}
+          selectedPeriod={anafPeriod}
           revisalDeliverForm={revisalDeliverForm}
           setRevisalDeliverForm={setRevisalDeliverForm}
           markRevisalDelivered={markRevisalDelivered}
@@ -2432,8 +3232,6 @@ function App() {
           busyKey={busyKey}
           downloadFinancialExport={downloadFinancialExport}
           financialStatements={financialStatements}
-          anafPeriod={anafPeriod}
-          setAnafPeriod={setAnafPeriod}
           downloadAnafExport={downloadAnafExport}
           checkAnafValidation={checkAnafValidation}
           canExportReports={canAction.exportReports}
@@ -2458,21 +3256,8 @@ function App() {
           <small>Contabilitate Integrată</small>
         </div>
 
-        <nav>
-          {visibleMenuItems.map((item) => (
-            <button
-              key={item.key}
-              className={moduleKey === item.key ? 'nav-btn active' : 'nav-btn'}
-              onClick={() => setModuleKey(item.key)}
-            >
-              {item.label}
-            </button>
-          ))}
-        </nav>
-
         <div className="user-box">
           <strong>{user.name}</strong>
-          <span>{ROLE_LABEL[user.companyRole ?? user.role]}</span>
           {availableCompanies.length > 1 ? (
             <label className="company-switcher">
               Companie activă
@@ -2494,21 +3279,136 @@ function App() {
               {user.companyCode ? ` (${user.companyCode})` : ''}
             </span>
           )}
-          <span>{user.email}</span>
-          <button onClick={() => void handleLogout()}>Ieșire</button>
+          <label className="period-switcher">
+            Perioadă (an/lună)
+            <div className="period-switcher-row">
+              <select value={String(FIXED_PERIOD_YEAR)} disabled>
+                <option value={String(FIXED_PERIOD_YEAR)}>{FIXED_PERIOD_YEAR}</option>
+              </select>
+              <select
+                value={periodParts.month}
+                onChange={(event) => handleSidebarMonthChange(event.target.value)}
+              >
+                {MONTH_OPTIONS.map((month) => (
+                  <option key={month.value} value={month.value} disabled={Number(month.value) > maxEnabledMonth}>
+                    {month.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </label>
         </div>
+
+        <nav>
+          {visibleMenuItems.map((item) => (
+            <button
+              key={item.key}
+              className={moduleKey === item.key ? 'nav-btn active' : 'nav-btn'}
+              onClick={() => setModuleKey(item.key)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+
+        <button className="sidebar-logout" onClick={() => void handleLogout()}>
+          Ieșire
+        </button>
       </aside>
 
       <main className="content">
         <header className="topbar">
           <h1>{visibleMenuItems.find((item) => item.key === moduleKey)?.label ?? 'Dashboard'}</h1>
           <div className="topbar-actions">
+            {moduleKey === 'accounts' ? (
+              <button onClick={() => void openAccountsListPdf()} disabled={busyKey === 'accounts-list-pdf'}>
+                {busyKey === 'accounts-list-pdf' ? 'Listare...' : 'List'}
+              </button>
+            ) : null}
+            {moduleKey === 'journal' ? (
+              <button onClick={() => void openJournalEntriesListPdf()} disabled={busyKey === 'journal-list-pdf'}>
+                {busyKey === 'journal-list-pdf' ? 'Listare...' : 'List'}
+              </button>
+            ) : null}
+            {moduleKey === 'partners' ? (
+              <button onClick={() => void openPartnersListPdf()} disabled={busyKey === 'partners-list-pdf'}>
+                {busyKey === 'partners-list-pdf' ? 'Listare...' : 'List'}
+              </button>
+            ) : null}
+            {moduleKey === 'invoices' ? (
+              <button onClick={() => void openInvoicesListPdf()} disabled={busyKey === 'invoices-list-pdf'}>
+                {busyKey === 'invoices-list-pdf' ? 'Listare...' : 'List Facturi'}
+              </button>
+            ) : null}
+            {moduleKey === 'purchases' ? (
+              <button onClick={() => void openPurchasesListPdf()} disabled={busyKey === 'purchases-list-pdf'}>
+                {busyKey === 'purchases-list-pdf' ? 'Listare...' : 'List'}
+              </button>
+            ) : null}
+            {moduleKey === 'stocks' ? (
+              <button onClick={() => void openStocksListPdf()} disabled={busyKey === 'stocks-list-pdf'}>
+                {busyKey === 'stocks-list-pdf' ? 'Listare...' : 'List'}
+              </button>
+            ) : null}
+            {moduleKey === 'payroll' ? (
+              <button
+                onClick={() => void openPayrollEmployeesListPdf()}
+                disabled={busyKey === 'payroll-employees-list-pdf'}
+              >
+                {busyKey === 'payroll-employees-list-pdf' ? 'Listare...' : 'List Angajați'}
+              </button>
+            ) : null}
+            {moduleKey === 'payroll' ? (
+              <button onClick={() => void openPayrollRunsListPdf()} disabled={busyKey === 'payroll-runs-list-pdf'}>
+                {busyKey === 'payroll-runs-list-pdf' ? 'Listare...' : 'List State'}
+              </button>
+            ) : null}
+            {moduleKey === 'revisal' ? (
+              <button onClick={() => void openRevisalExportsListPdf()} disabled={busyKey === 'revisal-list-pdf'}>
+                {busyKey === 'revisal-list-pdf' ? 'Listare...' : 'List Revisal'}
+              </button>
+            ) : null}
+            {moduleKey === 'assets' ? (
+              <button onClick={() => void openAssetsListPdf()} disabled={busyKey === 'assets-list-pdf'}>
+                {busyKey === 'assets-list-pdf' ? 'Listare...' : 'List Mijloace fixe'}
+              </button>
+            ) : null}
             <button onClick={() => void loadModuleData(moduleKey, { force: true })} disabled={loading}>
               {loading ? 'Actualizare...' : 'Refresh date'}
             </button>
           </div>
         </header>
 
+        {showConnectivityBanner ? (
+          <section className={`connectivity-banner ${isOnline ? 'connectivity-banner-online' : 'connectivity-banner-offline'}`}>
+            <div>
+              <strong>
+                {!isOnline
+                  ? 'Mod offline activ'
+                  : offlineSyncStatus === 'syncing'
+                    ? 'Sincronizare coadă în curs'
+                    : offlineSyncStatus === 'error'
+                      ? 'Sincronizare coadă întreruptă'
+                      : 'Conectat'}
+              </strong>
+              <p className="muted">
+                {!isOnline
+                  ? 'Datele sunt disponibile în regim read-only. Operațiunile de scriere se adaugă în coada locală.'
+                  : `Operațiuni în coadă: ${offlineWriteQueue.length}.`}
+              </p>
+              {offlineSyncMessage ? <p className="muted">{offlineSyncMessage}</p> : null}
+            </div>
+            <div className="connectivity-actions">
+              <button
+                className="ghost"
+                onClick={() => void syncOfflineWriteQueue({ manual: true })}
+                disabled={!isOnline || offlineWriteQueue.length === 0 || offlineSyncStatus === 'syncing'}
+              >
+                {offlineSyncStatus === 'syncing' ? 'Sincronizare...' : 'Sincronizează coada'}
+              </button>
+            </div>
+          </section>
+        ) : null}
         {error ? <div className="alert">{error}</div> : null}
         {renderModule()}
       </main>
@@ -2517,8 +3417,17 @@ function App() {
         <div className="modal-backdrop" role="presentation">
           <section className="modal-card" role="dialog" aria-modal="true" aria-label="Dialog plată">
             <header className="modal-header">
-              <h3>
-                {paymentDialog.flow === 'INVOICE_COLLECTION' ? 'Înregistrare încasare client' : 'Înregistrare plată furnizor'}
+              <h3 className="flow-title">
+                <span>{paymentDialog.flow === 'INVOICE_COLLECTION' ? 'Înregistrare încasare client' : 'Înregistrare plată furnizor'}</span>
+                <span
+                  className={
+                    paymentDialog.flow === 'INVOICE_COLLECTION'
+                      ? 'flow-badge flow-badge-inflow'
+                      : 'flow-badge flow-badge-outflow'
+                  }
+                >
+                  {paymentDialog.flow === 'INVOICE_COLLECTION' ? 'Încasare' : 'Plată'}
+                </span>
               </h3>
               <button type="button" className="ghost" onClick={closePaymentDialog} disabled={busyKey === 'payment-dialog-submit'}>
                 Închide

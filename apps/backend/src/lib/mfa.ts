@@ -2,7 +2,7 @@ import { Role } from '@prisma/client';
 import { generateSecret, generateURI, verifySync } from 'otplib';
 
 const MFA_ISSUER = 'SEGA Accounting';
-const MFA_REQUIRED_ROLE_SET = new Set<Role>([Role.ADMIN]);
+const MFA_REQUIRED_ROLE_SET = new Set<Role>([Role.ADMIN, Role.CHIEF_ACCOUNTANT]);
 
 export interface MfaSetupPayload {
   secret: string;

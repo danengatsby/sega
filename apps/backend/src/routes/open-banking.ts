@@ -6,7 +6,12 @@ import { HttpError } from '../lib/http-error.js';
 import { prisma } from '../lib/prisma.js';
 import { PERMISSIONS } from '../lib/rbac.js';
 import { requirePermissions } from '../middleware/auth.js';
-import { exchangeBcrAccessToken } from '../services/open-banking/pilot-bcr-connector.js';
+import {
+  OPEN_BANKING_BANK_CODES,
+  parseOpenBankingBankCode,
+  providerNameForBankCode,
+} from '../services/open-banking/banks.js';
+import { exchangeOpenBankingAccessToken } from '../services/open-banking/pilot-bcr-connector.js';
 import { runOpenBankingSync } from '../services/open-banking/sync-service.js';
 
 const router = Router();
@@ -14,7 +19,7 @@ const router = Router();
 const createConnectionSchema = z.object({
   bankCode: z.preprocess(
     (value) => (typeof value === 'string' ? value.trim().toUpperCase() : value),
-    z.enum(['BCR']).default('BCR'),
+    z.enum(OPEN_BANKING_BANK_CODES).default('BCR'),
   ),
   providerName: z.string().trim().min(2).max(120).optional(),
   accountCode: z.string().trim().min(1).default('5121'),
@@ -41,9 +46,10 @@ const syncSchema = z.object({
   reason: z.string().optional(),
 });
 
-function providerNameForBank(bankCode: string): string {
-  if (bankCode === 'BCR') {
-    return 'BCR George Open Banking';
+function resolveConnectionBankCode(rawBankCode: string) {
+  const bankCode = parseOpenBankingBankCode(rawBankCode);
+  if (!bankCode) {
+    throw HttpError.badRequest(`Cod bancă Open Banking neacceptat: ${rawBankCode}`);
   }
   return bankCode;
 }
@@ -118,7 +124,7 @@ router.post('/connections', requirePermissions(PERMISSIONS.OPEN_BANKING_WRITE), 
       companyId,
       createdById: req.user!.id,
       bankCode: parsed.data.bankCode,
-      providerName: parsed.data.providerName ?? providerNameForBank(parsed.data.bankCode),
+      providerName: parsed.data.providerName ?? providerNameForBankCode(parsed.data.bankCode),
       accountCode: parsed.data.accountCode,
       externalConsentId: parsed.data.externalConsentId,
       externalAccountId: parsed.data.externalAccountId,
@@ -193,7 +199,8 @@ router.post('/connections/:id/oauth2/token', requirePermissions(PERMISSIONS.OPEN
     throw HttpError.badRequest('authorizationCode sau refreshToken sunt obligatorii pentru token exchange.');
   }
 
-  const token = await exchangeBcrAccessToken({
+  const token = await exchangeOpenBankingAccessToken({
+    bankCode: resolveConnectionBankCode(connection.bankCode),
     grantType,
     code: parsed.data.authorizationCode,
     redirectUri: parsed.data.redirectUri,

@@ -166,6 +166,13 @@ enum RevisalDeliveryChannel {
   OTHER
 }
 
+enum ETransportShipmentStatus {
+  GENERATED
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
+}
+
 model Company {
   id            String @db.Uuid                @id @default(uuid())
   code          String                @unique
@@ -208,6 +215,7 @@ model Company {
   employees     Employee[]
   payrollRuns   PayrollRun[]
   auditLogs     AuditLog[]
+  eTransportShipments ETransportShipment[]
 
   @@index([isActive])
   @@index([name])
@@ -275,6 +283,7 @@ model User {
   supplierInvoiceApprovalFinalizations SupplierInvoice[] @relation("SupplierInvoiceApprovalFinalizedBy")
   approvalDelegationsGiven ApprovalDelegation[] @relation("ApprovalDelegationFrom")
   approvalDelegationsReceived ApprovalDelegation[] @relation("ApprovalDelegationTo")
+  eTransportShipmentsCreated ETransportShipment[] @relation("ETransportShipmentsCreatedBy")
 }
 
 model RefreshSession {
@@ -939,4 +948,35 @@ model DashboardSnapshot {
 
   @@index([companyId, createdAt])
   @@index([companyId, key, createdAt])
+}
+
+model ETransportShipment {
+  id               String @db.Uuid                 @id @default(uuid())
+  companyId        String @db.Uuid
+  createdById      String @db.Uuid
+  uit              String                          @unique
+  shipmentReference String?
+  vehicleNumber    String
+  carrierName      String?
+  originLocation   String
+  destinationLocation String
+  goodsDescription String
+  goodsCategory    String?
+  quantity         Decimal?                        @db.Decimal(18, 3)
+  unit             String?
+  grossWeightKg    Decimal?                        @db.Decimal(18, 3)
+  plannedDepartureAt DateTime?
+  actualDepartureAt DateTime?
+  actualArrivalAt  DateTime?
+  status           ETransportShipmentStatus        @default(GENERATED)
+  statusReason     String?
+  metadata         Json?
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
+  company          Company                         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy        User                            @relation("ETransportShipmentsCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, uit])
+  @@index([createdById])
 }

@@ -14,6 +14,7 @@ import { requirePermissions } from '../middleware/auth.js';
 import { currentPeriod } from '../utils/accounting.js';
 import { round2, toNumber } from '../utils/number.js';
 import { parsePeriod } from '../utils/period.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -29,6 +30,136 @@ const generateSchema = z.object({
   camAccountCode: z.string().default('4317'),
   taxAccountCode: z.string().default('444'),
   reason: z.string().optional(),
+});
+
+function payrollStatusLabel(status: PayrollStatus): string {
+  switch (status) {
+    case PayrollStatus.DRAFT:
+      return 'Draft';
+    case PayrollStatus.POSTED:
+      return 'Postat';
+    default:
+      return status;
+  }
+}
+
+router.get('/export/employees/pdf', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const [company, employees] = await Promise.all([
+    prisma.company.findUnique({
+      where: {
+        id: companyId,
+      },
+      select: {
+        code: true,
+        name: true,
+      },
+    }),
+    prisma.employee.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      select: {
+        cnp: true,
+        name: true,
+        contractType: true,
+        grossSalary: true,
+        personalDeduction: true,
+        isActive: true,
+        hiredAt: true,
+      },
+    }),
+  ]);
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const activeCount = employees.filter((employee) => employee.isActive).length;
+  const totalGross = round2(employees.reduce((sum, employee) => sum + toNumber(employee.grossSalary), 0));
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista angajati',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total angajati: ${employees.length} | Activi: ${activeCount} | Total brut lunar: ${totalGross.toFixed(2)}`,
+    '',
+    'Nume | CNP | Contract | Brut | Deducere | Activ | Data angajare',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...employees.map((employee) => {
+      return `${employee.name} | ${employee.cnp} | ${employee.contractType} | ${toNumber(employee.grossSalary).toFixed(
+        2,
+      )} | ${toNumber(employee.personalDeduction).toFixed(2)} | ${employee.isActive ? 'DA' : 'NU'} | ${employee.hiredAt.toLocaleDateString(
+        'ro-RO',
+      )}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="angajati-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
+
+router.get('/export/runs/pdf', requirePermissions(PERMISSIONS.PAYROLL_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const [company, runs] = await Promise.all([
+    prisma.company.findUnique({
+      where: {
+        id: companyId,
+      },
+      select: {
+        code: true,
+        name: true,
+      },
+    }),
+    prisma.payrollRun.findMany({
+      where: {
+        companyId,
+      },
+      include: {
+        lines: {
+          select: {
+            id: true,
+          },
+        },
+      },
+      orderBy: [{ period: 'desc' }, { payDate: 'desc' }],
+      take: 36,
+    }),
+  ]);
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalNet = round2(runs.reduce((sum, run) => sum + toNumber(run.totalNet), 0));
+  const totalGross = round2(runs.reduce((sum, run) => sum + toNumber(run.totalGross), 0));
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista state salarii',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `State listate: ${runs.length} | Total brut: ${totalGross.toFixed(2)} | Total net: ${totalNet.toFixed(2)}`,
+    '',
+    'Perioada | Data plata | Status | Angajati | Brut | Net | CAS | CASS | CAM | Impozit',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...runs.map((run) => {
+      return `${run.period} | ${run.payDate.toLocaleDateString('ro-RO')} | ${payrollStatusLabel(run.status)} | ${run.lines.length} | ${toNumber(
+        run.totalGross,
+      ).toFixed(2)} | ${toNumber(run.totalNet).toFixed(2)} | ${toNumber(run.totalCas).toFixed(2)} | ${toNumber(
+        run.totalCass,
+      ).toFixed(2)} | ${toNumber(run.totalCam).toFixed(2)} | ${toNumber(run.totalTax).toFixed(2)}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="state-salarii-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
 });
 
 router.get(

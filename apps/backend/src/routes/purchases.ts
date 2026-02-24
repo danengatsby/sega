@@ -23,6 +23,7 @@ import { writeAudit } from '../lib/audit.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { currentPeriod } from '../utils/accounting.js';
 import { round2, toNumber } from '../utils/number.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -224,6 +225,131 @@ function buildSupplierInvoiceOrderBy(
       return [{ receivedDate: sortDirection }, { id: 'desc' }];
   }
 }
+
+function supplierInvoiceStatusLabel(status: SupplierInvoiceStatus): string {
+  switch (status) {
+    case SupplierInvoiceStatus.DRAFT:
+      return 'Draft';
+    case SupplierInvoiceStatus.RECEIVED:
+      return 'Receptionata';
+    case SupplierInvoiceStatus.PARTIALLY_PAID:
+      return 'Partial platita';
+    case SupplierInvoiceStatus.PAID:
+      return 'Platita';
+    case SupplierInvoiceStatus.CANCELLED:
+      return 'Anulata';
+    default:
+      return status;
+  }
+}
+
+function supplierApprovalStatusLabel(status: SupplierInvoiceApprovalStatus): string {
+  switch (status) {
+    case SupplierInvoiceApprovalStatus.PENDING_LEVEL_1:
+      return 'Aprobare L1';
+    case SupplierInvoiceApprovalStatus.PENDING_LEVEL_2:
+      return 'Aprobare L2';
+    case SupplierInvoiceApprovalStatus.PENDING_LEVEL_3:
+      return 'Aprobare L3';
+    case SupplierInvoiceApprovalStatus.PENDING_LEVEL_4:
+      return 'Aprobare L4';
+    case SupplierInvoiceApprovalStatus.APPROVED:
+      return 'Aprobata';
+    case SupplierInvoiceApprovalStatus.REJECTED:
+      return 'Respinsa';
+    default:
+      return status;
+  }
+}
+
+router.get('/invoices/export/pdf', requirePermissions(PERMISSIONS.PURCHASES_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const invoices = await prisma.supplierInvoice.findMany({
+    where: {
+      companyId,
+    },
+    include: {
+      supplier: {
+        select: {
+          name: true,
+        },
+      },
+      payments: {
+        select: {
+          amount: true,
+          date: true,
+          reference: true,
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      },
+    },
+    orderBy: [{ receivedDate: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalInvoices = invoices.length;
+  const totalAmount = round2(invoices.reduce((sum, invoice) => sum + toNumber(invoice.total), 0));
+  const totalPaid = round2(
+    invoices.reduce(
+      (sum, invoice) =>
+        sum +
+        round2(
+          invoice.payments.reduce((invoiceSum, payment) => invoiceSum + toNumber(payment.amount), 0),
+        ),
+      0,
+    ),
+  );
+  const totalOpen = round2(Math.max(totalAmount - totalPaid, 0));
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista facturi furnizori si plati',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total facturi furnizor: ${totalInvoices}`,
+    `Valoare totala: ${totalAmount.toFixed(2)} | Total platit: ${totalPaid.toFixed(2)} | Sold deschis: ${totalOpen.toFixed(2)}`,
+    '',
+    'Nr | Furnizor | Primire | Scadenta | Status | Aprobare | Total | Platit | Rest | Ultima ref.',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...invoices.map((invoice) => {
+      const total = toNumber(invoice.total);
+      const paid = round2(
+        invoice.payments.reduce((invoiceSum, payment) => invoiceSum + toNumber(payment.amount), 0),
+      );
+      const open = round2(Math.max(total - paid, 0));
+      const latestPayment = invoice.payments[0] ?? null;
+      const latestReference = latestPayment?.reference?.trim() || '-';
+
+      return `${invoice.number} | ${invoice.supplier.name} | ${invoice.receivedDate.toLocaleDateString(
+        'ro-RO',
+      )} | ${invoice.dueDate.toLocaleDateString('ro-RO')} | ${supplierInvoiceStatusLabel(
+        invoice.status,
+      )} | ${supplierApprovalStatusLabel(invoice.approvalStatus)} | ${total.toFixed(2)} | ${paid.toFixed(
+        2,
+      )} | ${open.toFixed(2)} | ${latestReference}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="facturi-furnizori-plati-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/invoices', requirePermissions(PERMISSIONS.PURCHASES_READ), async (req, res) => {
   const query = parseListQuery(req.query as Record<string, unknown>, {

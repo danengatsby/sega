@@ -33,6 +33,11 @@ const OPERATION_MATRIX: OperationScenario[] = [
     allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT],
   },
   {
+    operation: 'generează și monitorizează transporturi UIT',
+    requiredPermissions: [PERMISSIONS.E_TRANSPORT_WRITE],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER],
+  },
+  {
     operation: 'înregistrează plăți furnizori',
     requiredPermissions: [PERMISSIONS.PURCHASE_PAYMENTS_WRITE],
     allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.CASHIER],
