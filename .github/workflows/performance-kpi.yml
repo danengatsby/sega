@@ -83,8 +83,11 @@ jobs:
               --retry 2 \
               --retry-delay 2 \
               --retry-all-errors \
+              --retry-max-time 90 \
               --connect-timeout 10 \
               --max-time 60 \
+              --speed-time 20 \
+              --speed-limit 1024 \
               -o "${JMETER_ARCHIVE}" \
               "${url}"
           }
