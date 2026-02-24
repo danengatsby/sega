@@ -8,9 +8,11 @@ Evaluator: Codex (analiză statică + teste automate)
 - Validare contract API: `npm run openapi:ci -w backend` (critical coverage 88/88).
 - Validare DR locală: `npm run dr:drill` (backup/restore + row-count validation + raport JSON).
 - Validare configurații observability:
-  - `docker-compose --profile observability config`
-  - `promtool check config/rules` (Prometheus)
-  - `amtool check-config` (Alertmanager)
+  - randare profile compose: `docker-compose --profile observability config`
+  - validare Prometheus/Alertmanager cu imagini oficiale:
+    - `docker run ... prom/prometheus:v2.55.1 --entrypoint promtool check config/rules`
+    - `docker run ... prom/alertmanager:v0.27.0 --entrypoint amtool check-config`
+  - probe health endpoint-uri (`/-/ready`, `/api/health`) pentru stack-ul `oncall-webhook-mock + alertmanager + prometheus + grafana`
 - Validări suplimentare țintite:
   - `admin.integration.test.ts`
   - `rbac-auth.e2e.test.ts`
@@ -31,7 +33,7 @@ Evaluator: Codex (analiză statică + teste automate)
 ## Dovezi operaționale locale (sesiunea curentă)
 - DR drill (`npm run dr:drill`):
   - rezultat: **PASS**
-  - măsurat: `RTO=19s`, `RPO=0s`, `mismatch=0/35 tabele`
+  - măsurat: `RTO=14s`, `RPO=0s`, `mismatch=0/32 tabele`
 - Observability bootstrap (profil `observability`, servicii core):
   - `Prometheus /-/ready`: `200`
   - `Alertmanager /-/ready`: `200`
@@ -48,18 +50,15 @@ Evaluator: Codex (analiză statică + teste automate)
   - `Release Checklist`
   - `Frontend Tests`
   - `Observability Config`
-- Publicare și stabilizare checks pe `main`:
-  - PR #6 (merge `ce879e6`): publicare workflow-uri `Frontend Tests` + `Observability Config` pe branch protejat.
-  - PR #7 (merge `de4340a`): hardening `scripts/github-enforce-security-gates.sh` + selecție automată a check-urilor disponibile.
-  - PR #8 (merge `0b0a2ca`): hardening workflow `Performance KPI` (download JMeter robust, fără blocaje pe PR).
-- Validare pe commit-ul de merge `0b0a2ca20f57dd97faf47f99524efbadbf21f783` (push pe `main`, toate `success`):
-  - `ANAF Smoke` — run `22368798915`
-  - `Security Gates` — run `22368798921`
-  - `OpenAPI Contract` — run `22368798923`
-  - `Performance KPI` — run `22368798910`
-  - `Frontend Tests` — run `22368798972`
-  - `Observability Config` — run `22368798946`
-- Validare `Release Checklist` (PR gate, `success`): run `22368705506`.
+- Rulare pe `main` pentru head `cde1a0f770385b09bc98e297176439c6539eb826` (24 februarie 2026):
+  - `ANAF Smoke` — run `22371518521` (`success`, `2026-02-24T21:49:44Z`)
+  - `Security Gates` — run `22371518542` (`success`, `2026-02-24T21:49:03Z`)
+  - `OpenAPI Contract` — run `22371518520` (`success`, `2026-02-24T21:48:53Z`)
+  - `Performance KPI` — run `22371518527` (`success`, `2026-02-24T21:53:06Z`)
+  - `Frontend Tests` — run `22371518523` (`success`, `2026-02-24T21:48:59Z`)
+  - `Observability Config` — run `22371518526` (`success`, `2026-02-24T21:49:04Z`)
+- `Release Checklist` (gate pe PR) este `success` pe ultimul PR merged:
+  - run `22371505123` pentru head `8e3ba1eb2baaf29acb2a224a91b170a2b5d6457c`
 
 ## Cerințe verificate ca acoperite
 - Autentificare + RBAC + MFA roluri critice (`ADMIN`, `CHIEF_ACCOUNTANT`) și selecție explicită companie.
@@ -111,9 +110,10 @@ Evaluator: Codex (analiză statică + teste automate)
   - config Alertmanager (`infra/prometheus/alertmanager.yml`)
   - provisioning Grafana + dashboard `SEGA SLO Overview`
   - workflow CI `.github/workflows/observability-config.yml`
-- Stabilizare `Performance KPI` CI:
-  - setup JMeter cu retry/timeout/fallback mirror
-  - pașii JMeter sunt executați pe `push`/`workflow_dispatch`; pe `pull_request` gate-ul rulează bugetele k6 (evită blocaje intermitente de rețea)
+- Stabilizare `Performance KPI` JMeter pentru fluxul cu selecție explicită companie:
+  - extracție fallback `$.user.availableCompanies[0].id`
+  - `POST /api/auth/switch-company` condiționat când `user.companyId` este null/empty
+  - re-extracție `companyId` după switch pentru rutele KPI protejate
 - Aliniere branch protection automation:
   - scriptul `scripts/github-enforce-security-gates.sh` include implicit și check-urile `Frontend Tests`, `Observability Config`, `Release Checklist`
   - selecție automată a check-urilor disponibile în repo (evită configurări blocante dacă un workflow nu e încă pe `main`)
