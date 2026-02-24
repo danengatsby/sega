@@ -11,7 +11,7 @@ import { readRequestedCompanyId, resolveUserCompanyAccessContext } from '../lib/
 import { prisma } from '../lib/prisma.js';
 import { HttpError } from '../lib/http-error.js';
 import type { Permission } from '../lib/rbac.js';
-import { buildMfaSetupPayload, generateTotpSecret, isMfaRequiredRole, verifyTotpCode } from '../lib/mfa.js';
+import { buildMfaSetupPayload, generateTotpSecret, verifyTotpCode } from '../lib/mfa.js';
 import { writeAudit } from '../lib/audit.js';
 import { authenticate, clearAuthCookies, getAccessToken, getRefreshToken } from '../middleware/auth.js';
 
@@ -358,7 +358,7 @@ router.post('/login', async (req, res) => {
     return;
   }
 
-  if (isMfaRequiredRole(user.role) && user.mfaEnabled) {
+  if (user.mfaEnabled) {
     if (!user.mfaSecret) {
       res.status(409).json({
         message: 'Configurația MFA este invalidă. Reconfigurează MFA din profil.',
@@ -468,7 +468,7 @@ router.post('/mfa/setup', authenticate, async (req, res) => {
   const payload = buildMfaSetupPayload(updatedUser.email, secret);
   res.json({
     ...payload,
-    required: isMfaRequiredRole(req.user!.companyRole ?? updatedUser.role),
+    required: false,
   });
 });
 
@@ -533,15 +533,6 @@ router.post('/mfa/verify', authenticate, async (req, res) => {
 });
 
 router.post('/mfa/disable', authenticate, async (req, res) => {
-  const activeRole = req.user!.companyRole ?? req.user!.role;
-  if (isMfaRequiredRole(activeRole)) {
-    res.status(403).json({
-      message: 'Rolul curent necesită MFA activ. Dezactivarea nu este permisă.',
-      code: 'MFA_REQUIRED_FOR_ROLE',
-    });
-    return;
-  }
-
   const parsed = mfaVerifySchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ message: 'Codul MFA este invalid.' });

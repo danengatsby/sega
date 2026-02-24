@@ -88,7 +88,6 @@ interface WriteExecutionResult {
 }
 
 const MODULE_CACHE_TTL_MS = 30_000;
-const MFA_REQUIRED_ROLES = new Set<User['role']>(['ADMIN', 'CHIEF_ACCOUNTANT']);
 const FIXED_PERIOD_YEAR = 2026;
 const MONTH_OPTIONS = [
   { value: '01', label: 'Ian' },
@@ -177,12 +176,8 @@ function resolveLoginHints(): LoginHintCredentials[] {
 const LOGIN_HINTS = resolveLoginHints();
 
 function isMfaEnrollmentRequired(activeUser: User | null): boolean {
-  if (!activeUser) {
-    return false;
-  }
-
-  const activeRole = activeUser.companyRole ?? activeUser.role;
-  return MFA_REQUIRED_ROLES.has(activeRole) && activeUser.mfaEnabled !== true;
+  void activeUser;
+  return false;
 }
 
 function isCompanyOnboardingRequired(activeUser: User | null): boolean {

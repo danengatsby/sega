@@ -5,7 +5,6 @@ import type { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { isSessionIdBlacklisted } from '../lib/auth-token-blacklist.js';
-import { isMfaRequiredRole } from '../lib/mfa.js';
 import type { Permission } from '../lib/rbac.js';
 
 interface TokenUser {
@@ -300,15 +299,6 @@ export function enforcePasswordChange(req: Request, res: Response, next: NextFun
 export function enforceMfaEnrollment(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
     res.status(401).json({ message: 'Neautentificat.' });
-    return;
-  }
-
-  const activeRole = req.user.companyRole ?? req.user.role;
-  if (isMfaRequiredRole(activeRole) && !req.user.mfaEnabled) {
-    res.status(403).json({
-      message: 'Configurarea MFA (TOTP) este obligatorie pentru rolul curent.',
-      code: 'MFA_SETUP_REQUIRED',
-    });
     return;
   }
 
