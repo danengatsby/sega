@@ -2,7 +2,6 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { RevisalDelivery, RevisalDeliveryChannel } from '../types';
 
 interface RevisalGenerateFormState {
-  period: string;
   deliveryReference: string;
 }
 
@@ -17,6 +16,7 @@ interface RevisalPageProps {
   revisalGenerateForm: RevisalGenerateFormState;
   setRevisalGenerateForm: Dispatch<SetStateAction<RevisalGenerateFormState>>;
   generateRevisalExport: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  selectedPeriod: string;
   revisalDeliverForm: RevisalDeliverFormState;
   setRevisalDeliverForm: Dispatch<SetStateAction<RevisalDeliverFormState>>;
   markRevisalDelivered: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
@@ -49,6 +49,7 @@ export function RevisalPage({
   revisalGenerateForm,
   setRevisalGenerateForm,
   generateRevisalExport,
+  selectedPeriod,
   revisalDeliverForm,
   setRevisalDeliverForm,
   markRevisalDelivered,
@@ -65,20 +66,7 @@ export function RevisalPage({
         <h3>Generare export Revisal</h3>
         {canManageRevisal ? (
           <form onSubmit={(event) => void generateRevisalExport(event)} className="stack-form">
-            <label>
-              Perioadă
-              <input
-                type="month"
-                value={revisalGenerateForm.period}
-                onChange={(event) =>
-                  setRevisalGenerateForm((prev) => ({
-                    ...prev,
-                    period: event.target.value,
-                  }))
-                }
-                required
-              />
-            </label>
+            <p className="muted">Perioadă activă: {selectedPeriod}</p>
             <label>
               Referință livrare (opțional)
               <input

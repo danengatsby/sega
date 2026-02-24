@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { writeAudit } from '../lib/audit.js';
 import { PERMISSIONS } from '../lib/rbac.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 const accountSortFields = ['code', 'name', 'type', 'createdAt'] as const;
@@ -45,6 +46,74 @@ function buildAccountOrderBy(
       return [{ code: sortDirection }];
   }
 }
+
+function accountTypeLabel(type: AccountType): string {
+  switch (type) {
+    case AccountType.ASSET:
+      return 'Activ';
+    case AccountType.LIABILITY:
+      return 'Pasiv';
+    case AccountType.EQUITY:
+      return 'Capital';
+    case AccountType.REVENUE:
+      return 'Venit';
+    case AccountType.EXPENSE:
+      return 'Cheltuiala';
+    default:
+      return type;
+  }
+}
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.ACCOUNTS_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const accounts = await prisma.account.findMany({
+    where: {
+      companyId,
+    },
+    orderBy: [{ code: 'asc' }, { name: 'asc' }],
+    select: {
+      code: true,
+      name: true,
+      type: true,
+      currency: true,
+      isActive: true,
+    },
+  });
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const lines: string[] = [
+    'SEGA Accounting - Lista plan de conturi',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total conturi: ${accounts.length}`,
+    '',
+    'Cod | Denumire | Tip | Moneda | Activ',
+    '------------------------------------------------------------',
+    ...accounts.map(
+      (account) =>
+        `${account.code} | ${account.name} | ${accountTypeLabel(account.type)} | ${account.currency} | ${account.isActive ? 'DA' : 'NU'}`,
+    ),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="plan-conturi-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/', requirePermissions(PERMISSIONS.ACCOUNTS_READ), async (req, res) => {
   const query = parseListQuery(req.query as Record<string, unknown>, {

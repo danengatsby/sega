@@ -88,6 +88,35 @@ const RBAC_SCENARIOS: EndpointScenario[] = [
     }),
   },
   {
+    name: 'GET /api/e-transport/shipments',
+    method: 'GET',
+    path: '/api/e-transport/shipments',
+    requiredPermissions: [PERMISSIONS.E_TRANSPORT_READ],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.CASHIER, Role.MANAGER, Role.AUDITOR],
+    expectedAllowedStatus: 200,
+  },
+  {
+    name: 'POST /api/e-transport/shipments',
+    method: 'POST',
+    path: '/api/e-transport/shipments',
+    requiredPermissions: [PERMISSIONS.E_TRANSPORT_WRITE],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER],
+    expectedAllowedStatus: 201,
+    body: (role) => ({
+      shipmentReference: `UIT-${role.slice(0, 3)}-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`.slice(0, 64),
+      vehicleNumber: `B-${Math.floor(Math.random() * 9000 + 1000)}-${role.slice(0, 2)}`.slice(0, 32),
+      carrierName: `Carrier ${role}`,
+      originLocation: 'Bucuresti',
+      destinationLocation: 'Cluj-Napoca',
+      goodsDescription: `Transport marfa pentru test RBAC (${role})`,
+      goodsCategory: 'BUNURI_RISC_FISCAL',
+      quantity: 10,
+      unit: 'BUC',
+      grossWeightKg: 120.5,
+      reason: 'e2e-rbac',
+    }),
+  },
+  {
     name: 'GET /api/audit-log',
     method: 'GET',
     path: '/api/audit-log?take=5',
@@ -480,6 +509,12 @@ after(async () => {
       },
     });
 
+    await prisma.eTransportShipment.deleteMany({
+      where: {
+        companyId,
+      },
+    });
+
     await prisma.journalLine.deleteMany({
       where: {
         entry: {
@@ -527,6 +562,12 @@ after(async () => {
     });
 
     await prisma.stockItem.deleteMany({
+      where: {
+        companyId: secondaryCompanyId,
+      },
+    });
+
+    await prisma.eTransportShipment.deleteMany({
       where: {
         companyId: secondaryCompanyId,
       },

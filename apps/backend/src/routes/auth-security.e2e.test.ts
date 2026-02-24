@@ -283,10 +283,26 @@ test('login pentru cont cu MFA activ necesită cod valid', async () => {
   assert.ok(cookieHeader.includes('sega_access_token='));
 });
 
-test('CHIEF_ACCOUNTANT are login obișnuit fără MFA obligatoriu', async () => {
+test('CHIEF_ACCOUNTANT necesită cod MFA valid la login', async () => {
   assert.ok(chiefAccountant, 'Fixture CHIEF_ACCOUNTANT lipsă');
+  assert.ok(chiefAccountant.mfaSecret, 'Fixture CHIEF_ACCOUNTANT trebuie să aibă secret MFA');
 
-  const loginResponse = await login(chiefAccountant.email);
+  const noCodeResponse = await login(chiefAccountant.email);
+  assert.equal(noCodeResponse.status, 401);
+  const noCodePayload = (await noCodeResponse.json()) as { code?: string };
+  assert.equal(noCodePayload.code, 'MFA_CODE_REQUIRED');
+
+  const invalidCodeResponse = await login(chiefAccountant.email, {
+    mfaCode: '000000',
+  });
+  assert.equal(invalidCodeResponse.status, 401);
+  const invalidCodePayload = (await invalidCodeResponse.json()) as { code?: string };
+  assert.equal(invalidCodePayload.code, 'MFA_INVALID_CODE');
+
+  const validCode = generateSync({ secret: chiefAccountant.mfaSecret });
+  const loginResponse = await login(chiefAccountant.email, {
+    mfaCode: validCode,
+  });
   assert.equal(loginResponse.status, 200);
   let cookieHeader = extractCookieHeader(loginResponse);
   assert.ok(cookieHeader.includes('sega_access_token='));

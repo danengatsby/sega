@@ -16,6 +16,7 @@ import { currentPeriod } from '../utils/accounting.js';
 import { round2, toNumber } from '../utils/number.js';
 import { writeAudit } from '../lib/audit.js';
 import { HttpError } from '../lib/http-error.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 import {
   buildEfacturaInvoiceXml,
   downloadSignedEfacturaXml,
@@ -155,6 +156,123 @@ function buildInvoiceOrderBy(
       return [{ issueDate: sortDirection }, { id: 'desc' }];
   }
 }
+
+function invoiceKindLabel(kind: InvoiceKind): string {
+  switch (kind) {
+    case InvoiceKind.FISCAL:
+      return 'Fiscala';
+    case InvoiceKind.PROFORMA:
+      return 'Proforma';
+    case InvoiceKind.STORNO:
+      return 'Storno';
+    default:
+      return kind;
+  }
+}
+
+function invoiceStatusLabel(status: InvoiceStatus): string {
+  switch (status) {
+    case InvoiceStatus.DRAFT:
+      return 'Draft';
+    case InvoiceStatus.ISSUED:
+      return 'Emisa';
+    case InvoiceStatus.PARTIALLY_PAID:
+      return 'Partial platita';
+    case InvoiceStatus.PAID:
+      return 'Platita';
+    case InvoiceStatus.CANCELLED:
+      return 'Anulata';
+    default:
+      return status;
+  }
+}
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.INVOICES_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      companyId,
+    },
+    include: {
+      partner: {
+        select: {
+          name: true,
+        },
+      },
+      payments: {
+        select: {
+          amount: true,
+          date: true,
+          reference: true,
+        },
+        orderBy: {
+          date: 'desc',
+        },
+      },
+    },
+    orderBy: [{ issueDate: 'desc' }, { createdAt: 'desc' }],
+  });
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalInvoices = invoices.length;
+  const totalAmount = round2(invoices.reduce((sum, invoice) => sum + toNumber(invoice.total), 0));
+  const totalCollected = round2(
+    invoices.reduce(
+      (sum, invoice) =>
+        sum +
+        round2(
+          invoice.payments.reduce((invoiceSum, payment) => invoiceSum + toNumber(payment.amount), 0),
+        ),
+      0,
+    ),
+  );
+  const totalOpen = round2(Math.max(totalAmount - totalCollected, 0));
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista facturi si incasari',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total facturi: ${totalInvoices}`,
+    `Valoare totala: ${totalAmount.toFixed(2)} | Total incasat: ${totalCollected.toFixed(2)} | Sold deschis: ${totalOpen.toFixed(2)}`,
+    '',
+    'Nr | Tip | Client | Emitere | Scadenta | Status | Total | Incasat | Rest | Ultima ref.',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...invoices.map((invoice) => {
+      const total = toNumber(invoice.total);
+      const collected = round2(
+        invoice.payments.reduce((invoiceSum, payment) => invoiceSum + toNumber(payment.amount), 0),
+      );
+      const open = round2(Math.max(total - collected, 0));
+      const latestPayment = invoice.payments[0] ?? null;
+      const latestReference = latestPayment?.reference?.trim() || '-';
+
+      return `${invoice.number} | ${invoiceKindLabel(invoice.kind)} | ${invoice.partner.name} | ${invoice.issueDate.toLocaleDateString(
+        'ro-RO',
+      )} | ${invoice.dueDate.toLocaleDateString('ro-RO')} | ${invoiceStatusLabel(invoice.status)} | ${total.toFixed(
+        2,
+      )} | ${collected.toFixed(2)} | ${open.toFixed(2)} | ${latestReference}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="facturi-incasari-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/', requirePermissions(PERMISSIONS.INVOICES_READ), async (req, res) => {
   const query = parseListQuery(req.query as Record<string, unknown>, {

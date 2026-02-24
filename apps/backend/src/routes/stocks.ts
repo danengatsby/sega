@@ -10,6 +10,7 @@ import { writeAudit } from '../lib/audit.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { currentPeriod } from '../utils/accounting.js';
 import { round2, toNumber } from '../utils/number.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -82,6 +83,21 @@ function sanitizeCode(code: string): string {
 
 function sanitizeUnit(unit: string): string {
   return unit.trim().toUpperCase();
+}
+
+function stockMovementTypeLabel(type: StockMovementType): string {
+  switch (type) {
+    case StockMovementType.NIR:
+      return 'NIR';
+    case StockMovementType.CONSUMPTION:
+      return 'Consum';
+    case StockMovementType.INVENTORY_PLUS:
+      return 'Inventar +';
+    case StockMovementType.INVENTORY_MINUS:
+      return 'Inventar -';
+    default:
+      return type;
+  }
 }
 
 function toJsonValue(value: unknown): Prisma.InputJsonValue {
@@ -360,6 +376,114 @@ async function applyOutboundMovement(params: {
     resultingQuantity: nextQty,
   };
 }
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.STOCKS_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const [items, movements] = await Promise.all([
+    prisma.stockItem.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: [{ isActive: 'desc' }, { code: 'asc' }],
+      select: {
+        code: true,
+        name: true,
+        unit: true,
+        valuationMethod: true,
+        minStockQty: true,
+        quantityOnHand: true,
+        avgUnitCost: true,
+        isActive: true,
+      },
+    }),
+    prisma.stockMovement.findMany({
+      where: {
+        companyId,
+      },
+      include: {
+        item: {
+          select: {
+            code: true,
+            name: true,
+            unit: true,
+          },
+        },
+      },
+      orderBy: [{ movementDate: 'desc' }, { createdAt: 'desc' }],
+      take: 200,
+    }),
+  ]);
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalStockValue = round2(
+    items.reduce((sum, item) => sum + toNumber(item.quantityOnHand) * toNumber(item.avgUnitCost), 0),
+  );
+  const totalIn = round2(
+    movements.filter((movement) => toNumber(movement.quantity) > 0).reduce((sum, movement) => sum + toNumber(movement.quantity), 0),
+  );
+  const totalOut = round2(
+    Math.abs(
+      movements
+        .filter((movement) => toNumber(movement.quantity) < 0)
+        .reduce((sum, movement) => sum + toNumber(movement.quantity), 0),
+    ),
+  );
+
+  const lines: string[] = [
+    'SEGA Accounting - Stocuri curente si miscari recente',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Articole stoc: ${items.length} | Valoare stoc: ${totalStockValue.toFixed(2)}`,
+    `Miscari recente: ${movements.length} | Intrari: ${totalIn.toFixed(3)} | Iesiri: ${totalOut.toFixed(3)}`,
+    '',
+    '=== STOCURI CURENTE ===',
+    'Cod | Denumire | UM | Metoda | Minim | Cantitate | Cost mediu | Valoare | Activ',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...items.map((item) => {
+      const quantity = toNumber(item.quantityOnHand);
+      const avgCost = toNumber(item.avgUnitCost);
+      const value = round2(quantity * avgCost);
+
+      return `${item.code} | ${item.name} | ${item.unit} | ${item.valuationMethod} | ${toNumber(item.minStockQty).toFixed(
+        3,
+      )} | ${quantity.toFixed(3)} | ${avgCost.toFixed(4)} | ${value.toFixed(2)} | ${item.isActive ? 'DA' : 'NU'}`;
+    }),
+    '',
+    '=== MISCARI RECENTE ===',
+    'Data | Tip | Articol | UM | Cantitate | Cost unitar | Cost total | Doc | Observatii',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...movements.map((movement) => {
+      const note = movement.note?.trim() || '-';
+      const documentNumber = movement.documentNumber?.trim() || '-';
+      const itemLabel = `${movement.item.code} ${movement.item.name}`;
+
+      return `${movement.movementDate.toLocaleDateString('ro-RO')} | ${stockMovementTypeLabel(movement.type)} | ${itemLabel} | ${
+        movement.item.unit
+      } | ${toNumber(movement.quantity).toFixed(3)} | ${toNumber(movement.unitCost).toFixed(4)} | ${toNumber(
+        movement.totalCost,
+      ).toFixed(2)} | ${documentNumber} | ${note}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="stocuri-miscari-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/items', requirePermissions(PERMISSIONS.STOCKS_READ), async (req, res) => {
   const companyId = req.user!.companyId!;

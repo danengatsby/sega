@@ -3,7 +3,8 @@ import { HttpError } from '../../lib/http-error.js';
 import { logger } from '../../lib/logger.js';
 import { prisma } from '../../lib/prisma.js';
 import { round2 } from '../../utils/number.js';
-import { exchangeBcrAccessToken, fetchBcrAccounts, fetchBcrTransactions } from './pilot-bcr-connector.js';
+import { parseOpenBankingBankCode } from './banks.js';
+import { exchangeOpenBankingAccessToken, fetchOpenBankingAccounts, fetchOpenBankingTransactions } from './pilot-bcr-connector.js';
 import type { OpenBankingAccountSnapshot, OpenBankingSyncSummary, OpenBankingTransactionSnapshot } from './types.js';
 
 interface RunOpenBankingSyncInput {
@@ -36,6 +37,14 @@ function trimErrorMessage(error: unknown): string {
   return raw.slice(0, 1800);
 }
 
+function resolveConnectionBankCode(rawBankCode: string) {
+  const bankCode = parseOpenBankingBankCode(rawBankCode);
+  if (!bankCode) {
+    throw new Error(`Cod bancă Open Banking neacceptat: ${rawBankCode}`);
+  }
+  return bankCode;
+}
+
 async function ensureAccessToken(connection: OpenBankingConnection): Promise<OpenBankingConnection> {
   const tokenStillValid =
     connection.accessToken &&
@@ -48,7 +57,8 @@ async function ensureAccessToken(connection: OpenBankingConnection): Promise<Ope
     throw new Error('Conexiunea Open Banking nu are refresh token pentru reînnoirea sesiunii OAuth2.');
   }
 
-  const refreshedToken = await exchangeBcrAccessToken({
+  const refreshedToken = await exchangeOpenBankingAccessToken({
+    bankCode: resolveConnectionBankCode(connection.bankCode),
     grantType: 'refresh_token',
     refreshToken: connection.refreshToken,
   });
@@ -264,8 +274,9 @@ export async function runOpenBankingSync(input: RunOpenBankingSyncInput): Promis
     if (!activeConnection.accessToken) {
       throw new Error('Conexiunea Open Banking nu are access token activ.');
     }
+    const bankCode = resolveConnectionBankCode(activeConnection.bankCode);
 
-    const accounts = await fetchBcrAccounts(activeConnection.accessToken);
+    const accounts = await fetchOpenBankingAccounts(bankCode, activeConnection.accessToken);
     const selectedAccounts = pickAccounts(activeConnection, accounts);
     if (selectedAccounts.length === 0) {
       throw new Error('Nu există conturi eligibile pentru sincronizare pe conexiunea selectată.');
@@ -277,7 +288,8 @@ export async function runOpenBankingSync(input: RunOpenBankingSyncInput): Promis
     let latestCursorDate: Date | null = null;
 
     for (const account of selectedAccounts) {
-      const transactions = await fetchBcrTransactions({
+      const transactions = await fetchOpenBankingTransactions({
+        bankCode,
         accessToken: activeConnection.accessToken,
         externalAccountId: account.externalAccountId,
         fromDate: syncWindow.from,

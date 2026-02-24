@@ -17,7 +17,7 @@ data:
   DATABASE_USER: sega
   REDIS_URL: redis://redis:6379
   EXPORT_JOB_QUEUE_MODE: bull
-  CORS_ORIGIN: https://app.sega.local
+  CORS_ORIGIN: https://sega-contab.online
   ANAF_EFACTURA_MODE: off
   MINIO_ENDPOINT: http://minio:9000
   MINIO_BUCKET_EFACTURA: efactura
@@ -285,7 +285,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: app.sega.local
+    - host: sega-contab.online
       http:
         paths:
           - path: /api

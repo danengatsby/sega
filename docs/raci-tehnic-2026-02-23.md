@@ -76,7 +76,7 @@ Cadenta: lunara (prima saptamana din luna).
 
 - Template PR/release: `.github/pull_request_template.md`
 - Gate checklist release (soft/hard): `.github/workflows/release-checklist.yml`
-- Gates tehnice existente: `security-gates`, `openapi-contract`, `performance-kpi`, `dr-restore-drill`, `observability-config`
+- Gates tehnice existente: `security-gates`, `openapi-contract`, `performance-kpi`, `frontend-tests`, `dr-restore-drill`, `observability-config`
 
 ### Setari recomandate in GitHub (branch protection)
 

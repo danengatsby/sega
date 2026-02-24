@@ -14,7 +14,8 @@ const envSchema = z.object({
   JWT_ACCESS_PUBLIC_KEY: z.string().min(32).optional(),
   JWT_REFRESH_PRIVATE_KEY: z.string().min(32).optional(),
   JWT_REFRESH_PUBLIC_KEY: z.string().min(32).optional(),
-  JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().positive().default(15),
+  JWT_ACCESS_TTL_MINUTES: z.coerce.number().int().positive().default(60),
+  JWT_REFRESH_TTL_HOURS: z.coerce.number().int().positive().default(8),
   JWT_REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
   RATE_LIMIT_WINDOW_MS: z.coerce.number().int().positive().default(60_000),
@@ -55,13 +56,33 @@ const envSchema = z.object({
   MINIO_BUCKET_EFACTURA: z.string().min(3).default('efactura'),
   MINIO_AUTO_CREATE_BUCKETS: z.coerce.boolean().default(true),
   OPEN_BANKING_ENABLED: z.coerce.boolean().default(false),
-  OPEN_BANKING_PILOT_BANK: z.enum(['bcr']).default('bcr'),
+  OPEN_BANKING_PILOT_BANK: z.enum(['bcr', 'brd', 'ing', 'raiffeisen', 'unicredit']).default('bcr'),
   OPEN_BANKING_DAILY_SYNC_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(3),
   OPEN_BANKING_BCR_TOKEN_URL: z.string().url().optional(),
   OPEN_BANKING_BCR_ACCOUNTS_URL: z.string().url().optional(),
   OPEN_BANKING_BCR_TRANSACTIONS_URL: z.string().url().optional(),
   OPEN_BANKING_BCR_CLIENT_ID: z.string().min(3).optional(),
   OPEN_BANKING_BCR_CLIENT_SECRET: z.string().min(8).optional(),
+  OPEN_BANKING_BRD_TOKEN_URL: z.string().url().optional(),
+  OPEN_BANKING_BRD_ACCOUNTS_URL: z.string().url().optional(),
+  OPEN_BANKING_BRD_TRANSACTIONS_URL: z.string().url().optional(),
+  OPEN_BANKING_BRD_CLIENT_ID: z.string().min(3).optional(),
+  OPEN_BANKING_BRD_CLIENT_SECRET: z.string().min(8).optional(),
+  OPEN_BANKING_ING_TOKEN_URL: z.string().url().optional(),
+  OPEN_BANKING_ING_ACCOUNTS_URL: z.string().url().optional(),
+  OPEN_BANKING_ING_TRANSACTIONS_URL: z.string().url().optional(),
+  OPEN_BANKING_ING_CLIENT_ID: z.string().min(3).optional(),
+  OPEN_BANKING_ING_CLIENT_SECRET: z.string().min(8).optional(),
+  OPEN_BANKING_RAIFFEISEN_TOKEN_URL: z.string().url().optional(),
+  OPEN_BANKING_RAIFFEISEN_ACCOUNTS_URL: z.string().url().optional(),
+  OPEN_BANKING_RAIFFEISEN_TRANSACTIONS_URL: z.string().url().optional(),
+  OPEN_BANKING_RAIFFEISEN_CLIENT_ID: z.string().min(3).optional(),
+  OPEN_BANKING_RAIFFEISEN_CLIENT_SECRET: z.string().min(8).optional(),
+  OPEN_BANKING_UNICREDIT_TOKEN_URL: z.string().url().optional(),
+  OPEN_BANKING_UNICREDIT_ACCOUNTS_URL: z.string().url().optional(),
+  OPEN_BANKING_UNICREDIT_TRANSACTIONS_URL: z.string().url().optional(),
+  OPEN_BANKING_UNICREDIT_CLIENT_ID: z.string().min(3).optional(),
+  OPEN_BANKING_UNICREDIT_CLIENT_SECRET: z.string().min(8).optional(),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().min(12).optional(),
   BOOTSTRAP_ADMIN_ENABLED: z.coerce.boolean().default(false),
@@ -170,33 +191,124 @@ const envSchema = z.object({
   }
 
   if (data.OPEN_BANKING_ENABLED) {
-    if (!data.OPEN_BANKING_BCR_TOKEN_URL) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['OPEN_BANKING_BCR_TOKEN_URL'],
-        message: 'OPEN_BANKING_BCR_TOKEN_URL este obligatoriu când OPEN_BANKING_ENABLED=true.',
-      });
-    }
-    if (!data.OPEN_BANKING_BCR_ACCOUNTS_URL) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['OPEN_BANKING_BCR_ACCOUNTS_URL'],
-        message: 'OPEN_BANKING_BCR_ACCOUNTS_URL este obligatoriu când OPEN_BANKING_ENABLED=true.',
-      });
-    }
-    if (!data.OPEN_BANKING_BCR_TRANSACTIONS_URL) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['OPEN_BANKING_BCR_TRANSACTIONS_URL'],
-        message: 'OPEN_BANKING_BCR_TRANSACTIONS_URL este obligatoriu când OPEN_BANKING_ENABLED=true.',
-      });
-    }
-    if (!data.OPEN_BANKING_BCR_CLIENT_ID || !data.OPEN_BANKING_BCR_CLIENT_SECRET) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['OPEN_BANKING_BCR_CLIENT_ID'],
-        message: 'OPEN_BANKING_BCR_CLIENT_ID și OPEN_BANKING_BCR_CLIENT_SECRET sunt obligatorii când OPEN_BANKING_ENABLED=true.',
-      });
+    const addMissingConfigIssues = (params: {
+      bankLabel: string;
+      tokenUrl: string | undefined;
+      accountsUrl: string | undefined;
+      transactionsUrl: string | undefined;
+      clientId: string | undefined;
+      clientSecret: string | undefined;
+      tokenUrlPath: string;
+      accountsUrlPath: string;
+      transactionsUrlPath: string;
+      clientIdPath: string;
+    }) => {
+      if (!params.tokenUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [params.tokenUrlPath],
+          message: `${params.tokenUrlPath} este obligatoriu când OPEN_BANKING_ENABLED=true și OPEN_BANKING_PILOT_BANK=${params.bankLabel.toLowerCase()}.`,
+        });
+      }
+
+      if (!params.accountsUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [params.accountsUrlPath],
+          message: `${params.accountsUrlPath} este obligatoriu când OPEN_BANKING_ENABLED=true și OPEN_BANKING_PILOT_BANK=${params.bankLabel.toLowerCase()}.`,
+        });
+      }
+
+      if (!params.transactionsUrl) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [params.transactionsUrlPath],
+          message: `${params.transactionsUrlPath} este obligatoriu când OPEN_BANKING_ENABLED=true și OPEN_BANKING_PILOT_BANK=${params.bankLabel.toLowerCase()}.`,
+        });
+      }
+
+      if (!params.clientId || !params.clientSecret) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: [params.clientIdPath],
+          message: `${params.clientIdPath} și ${params.clientIdPath.replace('_CLIENT_ID', '_CLIENT_SECRET')} sunt obligatorii când OPEN_BANKING_ENABLED=true și OPEN_BANKING_PILOT_BANK=${params.bankLabel.toLowerCase()}.`,
+        });
+      }
+    };
+
+    switch (data.OPEN_BANKING_PILOT_BANK) {
+      case 'bcr':
+        addMissingConfigIssues({
+          bankLabel: 'BCR',
+          tokenUrl: data.OPEN_BANKING_BCR_TOKEN_URL,
+          accountsUrl: data.OPEN_BANKING_BCR_ACCOUNTS_URL,
+          transactionsUrl: data.OPEN_BANKING_BCR_TRANSACTIONS_URL,
+          clientId: data.OPEN_BANKING_BCR_CLIENT_ID,
+          clientSecret: data.OPEN_BANKING_BCR_CLIENT_SECRET,
+          tokenUrlPath: 'OPEN_BANKING_BCR_TOKEN_URL',
+          accountsUrlPath: 'OPEN_BANKING_BCR_ACCOUNTS_URL',
+          transactionsUrlPath: 'OPEN_BANKING_BCR_TRANSACTIONS_URL',
+          clientIdPath: 'OPEN_BANKING_BCR_CLIENT_ID',
+        });
+        break;
+      case 'brd':
+        addMissingConfigIssues({
+          bankLabel: 'BRD',
+          tokenUrl: data.OPEN_BANKING_BRD_TOKEN_URL,
+          accountsUrl: data.OPEN_BANKING_BRD_ACCOUNTS_URL,
+          transactionsUrl: data.OPEN_BANKING_BRD_TRANSACTIONS_URL,
+          clientId: data.OPEN_BANKING_BRD_CLIENT_ID,
+          clientSecret: data.OPEN_BANKING_BRD_CLIENT_SECRET,
+          tokenUrlPath: 'OPEN_BANKING_BRD_TOKEN_URL',
+          accountsUrlPath: 'OPEN_BANKING_BRD_ACCOUNTS_URL',
+          transactionsUrlPath: 'OPEN_BANKING_BRD_TRANSACTIONS_URL',
+          clientIdPath: 'OPEN_BANKING_BRD_CLIENT_ID',
+        });
+        break;
+      case 'ing':
+        addMissingConfigIssues({
+          bankLabel: 'ING',
+          tokenUrl: data.OPEN_BANKING_ING_TOKEN_URL,
+          accountsUrl: data.OPEN_BANKING_ING_ACCOUNTS_URL,
+          transactionsUrl: data.OPEN_BANKING_ING_TRANSACTIONS_URL,
+          clientId: data.OPEN_BANKING_ING_CLIENT_ID,
+          clientSecret: data.OPEN_BANKING_ING_CLIENT_SECRET,
+          tokenUrlPath: 'OPEN_BANKING_ING_TOKEN_URL',
+          accountsUrlPath: 'OPEN_BANKING_ING_ACCOUNTS_URL',
+          transactionsUrlPath: 'OPEN_BANKING_ING_TRANSACTIONS_URL',
+          clientIdPath: 'OPEN_BANKING_ING_CLIENT_ID',
+        });
+        break;
+      case 'raiffeisen':
+        addMissingConfigIssues({
+          bankLabel: 'RAIFFEISEN',
+          tokenUrl: data.OPEN_BANKING_RAIFFEISEN_TOKEN_URL,
+          accountsUrl: data.OPEN_BANKING_RAIFFEISEN_ACCOUNTS_URL,
+          transactionsUrl: data.OPEN_BANKING_RAIFFEISEN_TRANSACTIONS_URL,
+          clientId: data.OPEN_BANKING_RAIFFEISEN_CLIENT_ID,
+          clientSecret: data.OPEN_BANKING_RAIFFEISEN_CLIENT_SECRET,
+          tokenUrlPath: 'OPEN_BANKING_RAIFFEISEN_TOKEN_URL',
+          accountsUrlPath: 'OPEN_BANKING_RAIFFEISEN_ACCOUNTS_URL',
+          transactionsUrlPath: 'OPEN_BANKING_RAIFFEISEN_TRANSACTIONS_URL',
+          clientIdPath: 'OPEN_BANKING_RAIFFEISEN_CLIENT_ID',
+        });
+        break;
+      case 'unicredit':
+        addMissingConfigIssues({
+          bankLabel: 'UNICREDIT',
+          tokenUrl: data.OPEN_BANKING_UNICREDIT_TOKEN_URL,
+          accountsUrl: data.OPEN_BANKING_UNICREDIT_ACCOUNTS_URL,
+          transactionsUrl: data.OPEN_BANKING_UNICREDIT_TRANSACTIONS_URL,
+          clientId: data.OPEN_BANKING_UNICREDIT_CLIENT_ID,
+          clientSecret: data.OPEN_BANKING_UNICREDIT_CLIENT_SECRET,
+          tokenUrlPath: 'OPEN_BANKING_UNICREDIT_TOKEN_URL',
+          accountsUrlPath: 'OPEN_BANKING_UNICREDIT_ACCOUNTS_URL',
+          transactionsUrlPath: 'OPEN_BANKING_UNICREDIT_TRANSACTIONS_URL',
+          clientIdPath: 'OPEN_BANKING_UNICREDIT_CLIENT_ID',
+        });
+        break;
+      default:
+        break;
     }
   }
 });
