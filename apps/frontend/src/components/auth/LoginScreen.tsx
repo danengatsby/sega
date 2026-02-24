@@ -12,7 +12,7 @@ interface LoginScreenProps {
   confirmPassword: string;
   mfaCode: string;
   mfaRequired: boolean;
-  loginHints: LoginHintCredentials[];
+  loginHints?: LoginHintCredentials[];
   busy: boolean;
   error: string;
   onModeChange: (mode: 'login' | 'register') => void;
@@ -33,7 +33,7 @@ export function LoginScreen(props: LoginScreenProps) {
     confirmPassword,
     mfaCode,
     mfaRequired,
-    loginHints,
+    loginHints = [],
     busy,
     error,
     onModeChange,
