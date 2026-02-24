@@ -70,6 +70,7 @@ jobs:
           java-version: '17'
 
       - name: Setup JMeter
+        if: github.event_name != 'pull_request'
         run: |
           set -euo pipefail
           JMETER_VERSION=5.6.3
@@ -142,6 +143,7 @@ jobs:
           npm run perf:k6:ci -w backend
 
       - name: Run JMeter performance budgets
+        if: github.event_name != 'pull_request'
         env:
           PERF_USER_PASSWORD: ${{ env.CI_PERF_SECRET }}
         run: |
@@ -160,7 +162,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload JMeter artifacts
-        if: always()
+        if: always() && github.event_name != 'pull_request'
         uses: actions/upload-artifact@v4
         with:
           name: perf-jmeter-artifacts
