@@ -1,0 +1,72 @@
+name: DR Restore Drill
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 1 * *'
+
+permissions:
+  contents: read
+
+jobs:
+  dr-restore-drill:
+    name: DR Restore Drill
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: sega
+          POSTGRES_PASSWORD: sega
+          POSTGRES_DB: sega_accounting
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sega -d sega_accounting"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      DATABASE_URL: postgresql://sega:sega@localhost:5432/sega_accounting?schema=public
+      DR_RTO_TARGET_SECONDS: 3600
+      DR_RPO_TARGET_SECONDS: 900
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare database (schema + hardening + seed)
+        env:
+          ADMIN_PASSWORD: ci-admin-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          npm run db:bootstrap -w backend
+          npm run seed -w backend
+
+      - name: Run DR restore drill
+        run: npm run dr:drill
+
+      - name: Upload DR artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dr-restore-drill-artifacts
+          path: |
+            apps/backend/dr/backups/*.metadata.json
+            apps/backend/dr/reports/restore-drill-*.json
+          if-no-files-found: warn

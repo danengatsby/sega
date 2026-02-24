@@ -3,6 +3,7 @@
 [![ANAF Smoke](https://github.com/danengatsby/sega/actions/workflows/anaf-smoke.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/anaf-smoke.yml)
 [![OpenAPI Contract](https://github.com/danengatsby/sega/actions/workflows/openapi-contract.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/openapi-contract.yml)
 [![Performance KPI](https://github.com/danengatsby/sega/actions/workflows/performance-kpi.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/performance-kpi.yml)
+[![Frontend Tests](https://github.com/danengatsby/sega/actions/workflows/frontend-tests.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/frontend-tests.yml)
 [![DR Restore Drill](https://github.com/danengatsby/sega/actions/workflows/dr-restore-drill.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/dr-restore-drill.yml)
 [![Observability Config](https://github.com/danengatsby/sega/actions/workflows/observability-config.yml/badge.svg)](https://github.com/danengatsby/sega/actions/workflows/observability-config.yml)
 
@@ -56,10 +57,14 @@ Implementare MVP pentru aplicația de contabilitate descrisă în document, cu a
   - endpoint upload fișier (`multipart/form-data`) pentru `MT940`, `CAMT.053 (XML)` și `CSV`
   - mapare validată pentru câmpuri cheie (`date`, `amount`, `IBAN`) și limită 5000 linii/import
   - endpoint JSON existent păstrat pentru import intern programatic
-- Open Banking PSD2 (pilot):
-  - conector pilot BCR (`OAuth2` token exchange + refresh)
+- Open Banking PSD2 (multi-bancă):
+  - conectori configurați pentru BCR, BRD, ING, Raiffeisen, UniCredit (`OAuth2` token exchange + refresh)
   - sincronizare solduri și tranzacții în `bank_statements` / `bank_statement_lines`
   - sincronizare incrementală zilnică (scheduler UTC) + monitorizare erori per conexiune/run
+- Offline-first (frontend):
+  - detecție automată online/offline cu banner de stare runtime
+  - mod read-only pe datele curente când conexiunea lipsește
+  - coadă locală de operațiuni write (`localStorage`) + sincronizare automată la reconectare
 - Tranziție progresivă spre microservicii (pilot P2-01):
   - `auth-service` extras (runtime separat) pentru domeniul autentificare/autorizare
   - `invoice-service` extras (runtime separat) pentru domeniul facturare/încasări clienți
@@ -191,10 +196,32 @@ npm run invoice-service:dev
 - Auth service: `http://localhost:4101`
 - Invoice service: `http://localhost:4102`
 
+## Backend production cu PM2
+
+Configurare standardizată: `ecosystem.config.cjs` (repo root), aplicația `sega-backend`.
+
+Comenzi uzuale:
+
+```bash
+# build backend
+npm run build -w backend
+
+# pornește/reîncarcă procesul din ecosystem
+pm2 startOrReload ecosystem.config.cjs --only sega-backend
+
+# persistă lista de procese pentru restart la reboot
+pm2 save
+
+# status/logs
+pm2 describe sega-backend
+pm2 logs sega-backend --lines 100
+```
+
 ## Date login inițiale
 
 - Email: `admin@sega.local`
 - Parolă: valoarea din `ADMIN_PASSWORD` (`apps/backend/.env`)
+- Opțional afișare în UI login (frontend): `VITE_LOGIN_HINT_ADMIN_EMAIL`, `VITE_LOGIN_HINT_ADMIN_PASSWORD`, `VITE_LOGIN_HINT_ACCOUNTANT_LABEL`, `VITE_LOGIN_HINT_ACCOUNTANT_EMAIL`, `VITE_LOGIN_HINT_ACCOUNTANT_PASSWORD` (`apps/frontend/.env`)
 
 (se configurează din `apps/backend/.env`)
 
@@ -260,6 +287,10 @@ npm run invoice-service:dev
 - `GET /api/audit-log`
 - `GET /api/compliance/report`
 - `POST /api/compliance/retention/run`
+- `GET /api/e-transport/shipments`
+- `POST /api/e-transport/shipments`
+- `PATCH /api/e-transport/shipments/:id/status`
+- `GET /api/e-transport/shipments/monitor`
 - `POST /api/bank-reconciliation/statements/import` (JSON intern)
 - `POST /api/bank-reconciliation/statements/import-file` (upload `file` + `accountCode`, format `AUTO|MT940|CAMT053|CSV`)
 - `GET /api/open-banking/connections`
@@ -280,17 +311,42 @@ curl -X POST http://localhost:4000/api/bank-reconciliation/statements/import-fil
   -F "file=@/path/to/statement.mt940"
 ```
 
-Config Open Banking (pilot BCR) în `apps/backend/.env`:
+Config Open Banking (multi-bancă) în `apps/backend/.env`:
 
 ```dotenv
 OPEN_BANKING_ENABLED=true
 OPEN_BANKING_PILOT_BANK=bcr
 OPEN_BANKING_DAILY_SYNC_HOUR_UTC=3
+
 OPEN_BANKING_BCR_TOKEN_URL=https://<bank>/oauth2/token
 OPEN_BANKING_BCR_ACCOUNTS_URL=https://<bank>/open-banking/accounts
 OPEN_BANKING_BCR_TRANSACTIONS_URL=https://<bank>/open-banking/accounts/{accountId}/transactions
 OPEN_BANKING_BCR_CLIENT_ID=<client-id>
 OPEN_BANKING_BCR_CLIENT_SECRET=<client-secret>
+
+OPEN_BANKING_BRD_TOKEN_URL=
+OPEN_BANKING_BRD_ACCOUNTS_URL=
+OPEN_BANKING_BRD_TRANSACTIONS_URL=
+OPEN_BANKING_BRD_CLIENT_ID=
+OPEN_BANKING_BRD_CLIENT_SECRET=
+
+OPEN_BANKING_ING_TOKEN_URL=
+OPEN_BANKING_ING_ACCOUNTS_URL=
+OPEN_BANKING_ING_TRANSACTIONS_URL=
+OPEN_BANKING_ING_CLIENT_ID=
+OPEN_BANKING_ING_CLIENT_SECRET=
+
+OPEN_BANKING_RAIFFEISEN_TOKEN_URL=
+OPEN_BANKING_RAIFFEISEN_ACCOUNTS_URL=
+OPEN_BANKING_RAIFFEISEN_TRANSACTIONS_URL=
+OPEN_BANKING_RAIFFEISEN_CLIENT_ID=
+OPEN_BANKING_RAIFFEISEN_CLIENT_SECRET=
+
+OPEN_BANKING_UNICREDIT_TOKEN_URL=
+OPEN_BANKING_UNICREDIT_ACCOUNTS_URL=
+OPEN_BANKING_UNICREDIT_TRANSACTIONS_URL=
+OPEN_BANKING_UNICREDIT_CLIENT_ID=
+OPEN_BANKING_UNICREDIT_CLIENT_SECRET=
 ```
 
 Config Notificări (worker + canale) în `apps/backend/.env`:
@@ -409,11 +465,18 @@ kubectl apply -k infra/k8s/overlays/production-azure
 
 Ajustări obligatorii înainte de deploy:
 - `infra/k8s/overlays/production-base/tls-issuer.yaml`: schimbă `email` și, dacă e nevoie, issuer-ul (staging/prod)
-- `infra/k8s/overlays/production-base/patch-ingress-tls.yaml`: schimbă domeniul (`app.sega.local`)
+- `infra/k8s/core.yaml`: `Ingress.host` + `CORS_ORIGIN` sunt presetate pentru `https://sega-contab.online`
+- `infra/k8s/overlays/production-base/patch-ingress-tls.yaml`: host TLS presetat pentru `sega-contab.online` (schimbă doar dacă folosești alt domeniu)
 - `infra/k8s/overlays/production-vault/external-secrets-vault.yaml`: schimbă `vault.server`, `role`, `remoteRef`
 - `infra/k8s/overlays/production-aws/external-secrets-aws.yaml`: schimbă `role-arn`, `region`, `remoteRef`
 - `infra/k8s/overlays/production-gcp/external-secrets-gcp.yaml`: schimbă `PROJECT_ID`, `clusterName/location`, naming secret keys
 - `infra/k8s/overlays/production-azure/external-secrets-azure.yaml`: schimbă `client-id`, `vaultUrl`, naming secret keys
+
+DNS minim pentru domeniul `sega-contab.online`:
+- creează în providerul DNS un `A` record pentru `sega-contab.online` către IP-ul public al Ingress Controller-ului
+- după propagare, verifică Ingress-ul: `kubectl get ingress -n sega`
+- verifică emiterea certificatului: `kubectl get certificate -n sega`
+- test final: `curl -I https://sega-contab.online/api/health`
 
 ## Acoperire față de document
 

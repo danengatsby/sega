@@ -8,5 +8,5 @@ metadata:
 spec:
   tls:
     - hosts:
-        - app.sega.local
+        - sega-contab.online
       secretName: sega-app-tls
