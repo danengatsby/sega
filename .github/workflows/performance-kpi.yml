@@ -80,11 +80,11 @@ jobs:
           download_jmeter() {
             local url="$1"
             curl -fL \
-              --retry 5 \
+              --retry 2 \
               --retry-delay 2 \
               --retry-all-errors \
-              --connect-timeout 15 \
-              --max-time 180 \
+              --connect-timeout 10 \
+              --max-time 60 \
               -o "${JMETER_ARCHIVE}" \
               "${url}"
           }
