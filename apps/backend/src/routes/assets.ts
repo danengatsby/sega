@@ -14,6 +14,7 @@ import { requirePermissions } from '../middleware/auth.js';
 import { currentPeriod } from '../utils/accounting.js';
 import { monthDiffUTC, parsePeriod, periodToDateRange } from '../utils/period.js';
 import { round2, toNumber } from '../utils/number.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -100,6 +101,100 @@ function buildAssetOrderBy(
       return [{ isActive: sortDirection }, { name: 'asc' }, { id: 'asc' }];
   }
 }
+
+function depreciationMethodLabel(method: DepreciationMethod): string {
+  switch (method) {
+    case DepreciationMethod.LINEAR:
+      return 'Liniara';
+    case DepreciationMethod.DEGRESSIVE:
+      return 'Degresiva';
+    case DepreciationMethod.ACCELERATED:
+      return 'Accelerata';
+    default:
+      return method;
+  }
+}
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.ASSETS_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const [company, assets] = await Promise.all([
+    prisma.company.findUnique({
+      where: {
+        id: companyId,
+      },
+      select: {
+        code: true,
+        name: true,
+      },
+    }),
+    prisma.asset.findMany({
+      where: {
+        companyId,
+      },
+      orderBy: [{ isActive: 'desc' }, { name: 'asc' }],
+      select: {
+        code: true,
+        name: true,
+        value: true,
+        residualValue: true,
+        depreciationMethod: true,
+        startDate: true,
+        usefulLifeMonths: true,
+        isActive: true,
+        depreciationRecords: {
+          orderBy: [{ period: 'desc' }],
+          take: 1,
+          select: {
+            period: true,
+            accumulatedAmount: true,
+            bookValue: true,
+          },
+        },
+      },
+    }),
+  ]);
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalValue = round2(assets.reduce((sum, asset) => sum + toNumber(asset.value), 0));
+  const totalNet = round2(
+    assets.reduce((sum, asset) => {
+      const latestDep = asset.depreciationRecords[0];
+      const bookValue = latestDep ? toNumber(latestDep.bookValue) : toNumber(asset.value);
+      return sum + bookValue;
+    }, 0),
+  );
+
+  const lines: string[] = [
+    'SEGA Accounting - Registru mijloace fixe',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total active: ${assets.length} | Valoare intrare: ${totalValue.toFixed(2)} | Valoare neta: ${totalNet.toFixed(2)}`,
+    '',
+    'Cod | Denumire | Metoda | Start | Durata luni | Val intrare | Val reziduala | Amort cumulata | Val neta | Activ',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...assets.map((asset) => {
+      const latestDep = asset.depreciationRecords[0];
+      const accumulated = latestDep ? toNumber(latestDep.accumulatedAmount) : 0;
+      const bookValue = latestDep ? toNumber(latestDep.bookValue) : toNumber(asset.value);
+      const code = asset.code?.trim() || '-';
+
+      return `${code} | ${asset.name} | ${depreciationMethodLabel(asset.depreciationMethod)} | ${asset.startDate.toLocaleDateString(
+        'ro-RO',
+      )} | ${asset.usefulLifeMonths} | ${toNumber(asset.value).toFixed(2)} | ${toNumber(asset.residualValue).toFixed(
+        2,
+      )} | ${accumulated.toFixed(2)} | ${bookValue.toFixed(2)} | ${asset.isActive ? 'DA' : 'NU'}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="registru-mijloace-fixe-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/', requirePermissions(PERMISSIONS.ASSETS_READ), async (req, res) => {
   const query = parseListQuery(req.query as Record<string, unknown>, {

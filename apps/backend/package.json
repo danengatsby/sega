@@ -19,6 +19,7 @@
     "db:bootstrap": "npm run prisma:push && npm run prisma:enterprise",
     "db:bootstrap:reset": "prisma db push --force-reset && npm run prisma:enterprise",
     "seed": "tsx src/seed.ts",
+    "seed:demo:accountant-3companies": "tsx scripts/demo/seed-accountant-three-companies.ts",
     "anaf:smoke": "tsx scripts/anaf-smoke.ts",
     "open-banking:smoke": "tsx scripts/open-banking-smoke.ts",
     "openapi:generate": "tsx scripts/openapi/generate.ts",

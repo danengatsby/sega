@@ -7,6 +7,7 @@ import { prisma } from '../lib/prisma.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { writeAudit } from '../lib/audit.js';
 import { PERMISSIONS } from '../lib/rbac.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -22,6 +23,19 @@ const createSchema = z.object({
 
 const partnerSortFields = ['name', 'cui', 'type', 'createdAt'] as const;
 type PartnerSortField = (typeof partnerSortFields)[number];
+
+function partnerTypeLabel(type: 'CUSTOMER' | 'SUPPLIER' | 'BOTH'): string {
+  switch (type) {
+    case 'CUSTOMER':
+      return 'Client';
+    case 'SUPPLIER':
+      return 'Furnizor';
+    case 'BOTH':
+      return 'Client + Furnizor';
+    default:
+      return type;
+  }
+}
 
 function buildPartnerOrderBy(
   sortField: PartnerSortField,
@@ -39,6 +53,64 @@ function buildPartnerOrderBy(
       return [{ name: sortDirection }, { id: 'asc' }];
   }
 }
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.PARTNERS_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const partners = await prisma.partner.findMany({
+    where: {
+      companyId,
+    },
+    orderBy: [{ name: 'asc' }, { createdAt: 'desc' }],
+    select: {
+      name: true,
+      cui: true,
+      iban: true,
+      type: true,
+      email: true,
+      phone: true,
+    },
+  });
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const lines: string[] = [
+    'SEGA Accounting - Lista parteneri',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total parteneri: ${partners.length}`,
+    '',
+    'Nume | CUI | Tip | Email | Telefon | IBAN',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...partners.map((partner) => {
+      const name = partner.name.trim();
+      const cui = (partner.cui ?? '-').trim() || '-';
+      const type = partnerTypeLabel(partner.type);
+      const email = (partner.email ?? '-').trim() || '-';
+      const phone = (partner.phone ?? '-').trim() || '-';
+      const iban = (partner.iban ?? '-').trim() || '-';
+
+      return `${name} | ${cui} | ${type} | ${email} | ${phone} | ${iban}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="parteneri-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
+});
 
 router.get('/', requirePermissions(PERMISSIONS.PARTNERS_READ), async (req, res) => {
   const query = parseListQuery(req.query as Record<string, unknown>, {

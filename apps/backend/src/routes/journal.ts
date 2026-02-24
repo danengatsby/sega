@@ -10,6 +10,7 @@ import { PERMISSIONS } from '../lib/rbac.js';
 import { requirePermissions } from '../middleware/auth.js';
 import { currentPeriod, validateDoubleEntry } from '../utils/accounting.js';
 import { writeAudit } from '../lib/audit.js';
+import { buildSimplePdf } from '../utils/pdf.js';
 
 const router = Router();
 
@@ -38,6 +39,95 @@ const stornoEntrySchema = z.object({
   period: z.string().optional(),
   description: z.string().min(3).optional(),
   reason: z.string().optional(),
+});
+
+function journalStatusLabel(status: JournalEntryStatus): string {
+  switch (status) {
+    case JournalEntryStatus.DRAFT:
+      return 'Draft';
+    case JournalEntryStatus.VALIDATED:
+      return 'Validata';
+    case JournalEntryStatus.CLOSED:
+      return 'Inchisa';
+    default:
+      return status;
+  }
+}
+
+router.get('/export/pdf', requirePermissions(PERMISSIONS.JOURNAL_READ), async (req, res) => {
+  const companyId = req.user!.companyId!;
+  const company = await prisma.company.findUnique({
+    where: {
+      id: companyId,
+    },
+    select: {
+      code: true,
+      name: true,
+    },
+  });
+
+  const entries = await prisma.journalEntry.findMany({
+    where: {
+      companyId,
+    },
+    orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+    take: 200,
+    select: {
+      id: true,
+      number: true,
+      date: true,
+      period: true,
+      status: true,
+      description: true,
+      lines: {
+        select: {
+          debit: true,
+          credit: true,
+        },
+      },
+    },
+  });
+
+  const generatedAt = new Date().toLocaleString('ro-RO');
+  const totalDebit = entries.reduce(
+    (sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + Number(line.debit), 0),
+    0,
+  );
+  const totalCredit = entries.reduce(
+    (sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + Number(line.credit), 0),
+    0,
+  );
+
+  const lines: string[] = [
+    'SEGA Accounting - Lista note contabile',
+    `Companie: ${company?.name ?? req.user?.companyName ?? 'N/A'} (${company?.code ?? req.user?.companyCode ?? 'N/A'})`,
+    `Generat la: ${generatedAt}`,
+    `Total note: ${entries.length}`,
+    `Total debit: ${totalDebit.toFixed(2)} | Total credit: ${totalCredit.toFixed(2)}`,
+    '',
+    'Nr. | Data | Perioada | Status | Linii | Debit | Credit | Descriere',
+    '--------------------------------------------------------------------------------------------------------------',
+    ...entries.map((entry) => {
+      const entryDebit = entry.lines.reduce((sum, line) => sum + Number(line.debit), 0);
+      const entryCredit = entry.lines.reduce((sum, line) => sum + Number(line.credit), 0);
+      const number = entry.number ?? entry.id;
+      const date = entry.date.toLocaleDateString('ro-RO');
+      const description = (entry.description ?? '').replace(/\s+/g, ' ').trim();
+
+      return `${number} | ${date} | ${entry.period} | ${journalStatusLabel(entry.status)} | ${
+        entry.lines.length
+      } | ${entryDebit.toFixed(2)} | ${entryCredit.toFixed(2)} | ${description}`;
+    }),
+  ];
+
+  const pdf = buildSimplePdf(lines);
+  const safeCompanyCode = (company?.code ?? req.user?.companyCode ?? 'companie')
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-');
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="note-contabile-${safeCompanyCode}.pdf"`);
+  res.send(pdf);
 });
 
 router.get('/', requirePermissions(PERMISSIONS.JOURNAL_READ), async (req, res) => {

@@ -22,7 +22,10 @@ import openBankingRoutes from './routes/open-banking.js';
 import exportJobRoutes from './routes/export-jobs.js';
 import dashboardSnapshotRoutes from './routes/dashboard-snapshots.js';
 import revisalRoutes from './routes/revisal.js';
-import { authenticate, enforceMfaEnrollment, enforcePasswordChange } from './middleware/auth.js';
+import adminRoutes from './routes/admin.js';
+import complianceRoutes from './routes/compliance.js';
+import eTransportRoutes from './routes/e-transport.js';
+import { authenticate, enforceCompanySelection, enforceMfaEnrollment, enforcePasswordChange } from './middleware/auth.js';
 import { resolveCompanyContext } from './middleware/company.js';
 import { bindDbRequestContext } from './middleware/db-context.js';
 import { errorHandler, notFound } from './middleware/error.js';
@@ -149,10 +152,14 @@ export function createApp(): Express {
   app.use('/api/auth', authRoutes);
 
   app.use('/api', authenticate);
+  app.use('/api', enforceCompanySelection);
   app.use('/api', resolveCompanyContext);
   app.use('/api', enforcePasswordChange);
   app.use('/api', enforceMfaEnrollment);
   app.use('/api', bindDbRequestContext);
+  app.use('/api/admin', adminRoutes);
+  app.use('/api/compliance', complianceRoutes);
+  app.use('/api/e-transport', eTransportRoutes);
   app.use('/api/accounts', accountRoutes);
   app.use('/api/journal-entries', journalRoutes);
   app.use('/api/partners', partnerRoutes);

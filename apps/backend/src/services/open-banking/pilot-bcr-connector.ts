@@ -4,8 +4,9 @@ import type {
   OpenBankingAccountSnapshot,
   OpenBankingTransactionSnapshot,
 } from './types.js';
+import type { OpenBankingBankCode } from './banks.js';
 
-interface BcrConnectorConfig {
+interface OpenBankingConnectorConfig {
   tokenUrl: string;
   accountsUrl: string;
   transactionsUrl: string;
@@ -15,34 +16,90 @@ interface BcrConnectorConfig {
 
 type FetchImpl = typeof fetch;
 
-interface ExchangeBcrTokenInput {
+interface ExchangeAccessTokenInput {
+  bankCode: OpenBankingBankCode;
   grantType: 'authorization_code' | 'refresh_token';
   code?: string;
   redirectUri?: string;
   refreshToken?: string;
 }
 
-interface FetchBcrTransactionsInput {
+interface FetchTransactionsInput {
+  bankCode: OpenBankingBankCode;
   accessToken: string;
   externalAccountId: string;
   fromDate: Date;
   toDate: Date;
 }
 
-function resolveConfig(): BcrConnectorConfig {
-  if (!env.OPEN_BANKING_BCR_TOKEN_URL || !env.OPEN_BANKING_BCR_ACCOUNTS_URL || !env.OPEN_BANKING_BCR_TRANSACTIONS_URL) {
-    throw new Error('Configurația Open Banking BCR este incompletă (URL-uri lipsă).');
-  }
-  if (!env.OPEN_BANKING_BCR_CLIENT_ID || !env.OPEN_BANKING_BCR_CLIENT_SECRET) {
-    throw new Error('Configurația Open Banking BCR este incompletă (client credentials lipsă).');
-  }
+interface ConnectorEnvConfig {
+  tokenUrl: string | undefined;
+  accountsUrl: string | undefined;
+  transactionsUrl: string | undefined;
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+}
 
-  return {
+const connectorEnvByBank: Record<OpenBankingBankCode, ConnectorEnvConfig> = {
+  BCR: {
     tokenUrl: env.OPEN_BANKING_BCR_TOKEN_URL,
     accountsUrl: env.OPEN_BANKING_BCR_ACCOUNTS_URL,
     transactionsUrl: env.OPEN_BANKING_BCR_TRANSACTIONS_URL,
     clientId: env.OPEN_BANKING_BCR_CLIENT_ID,
     clientSecret: env.OPEN_BANKING_BCR_CLIENT_SECRET,
+  },
+  BRD: {
+    tokenUrl: env.OPEN_BANKING_BRD_TOKEN_URL,
+    accountsUrl: env.OPEN_BANKING_BRD_ACCOUNTS_URL,
+    transactionsUrl: env.OPEN_BANKING_BRD_TRANSACTIONS_URL,
+    clientId: env.OPEN_BANKING_BRD_CLIENT_ID,
+    clientSecret: env.OPEN_BANKING_BRD_CLIENT_SECRET,
+  },
+  ING: {
+    tokenUrl: env.OPEN_BANKING_ING_TOKEN_URL,
+    accountsUrl: env.OPEN_BANKING_ING_ACCOUNTS_URL,
+    transactionsUrl: env.OPEN_BANKING_ING_TRANSACTIONS_URL,
+    clientId: env.OPEN_BANKING_ING_CLIENT_ID,
+    clientSecret: env.OPEN_BANKING_ING_CLIENT_SECRET,
+  },
+  RAIFFEISEN: {
+    tokenUrl: env.OPEN_BANKING_RAIFFEISEN_TOKEN_URL,
+    accountsUrl: env.OPEN_BANKING_RAIFFEISEN_ACCOUNTS_URL,
+    transactionsUrl: env.OPEN_BANKING_RAIFFEISEN_TRANSACTIONS_URL,
+    clientId: env.OPEN_BANKING_RAIFFEISEN_CLIENT_ID,
+    clientSecret: env.OPEN_BANKING_RAIFFEISEN_CLIENT_SECRET,
+  },
+  UNICREDIT: {
+    tokenUrl: env.OPEN_BANKING_UNICREDIT_TOKEN_URL,
+    accountsUrl: env.OPEN_BANKING_UNICREDIT_ACCOUNTS_URL,
+    transactionsUrl: env.OPEN_BANKING_UNICREDIT_TRANSACTIONS_URL,
+    clientId: env.OPEN_BANKING_UNICREDIT_CLIENT_ID,
+    clientSecret: env.OPEN_BANKING_UNICREDIT_CLIENT_SECRET,
+  },
+};
+
+function resolveConfig(bankCode: OpenBankingBankCode): OpenBankingConnectorConfig {
+  const bankLabel = bankCode.toUpperCase();
+  const config = connectorEnvByBank[bankCode];
+  const tokenUrl = config.tokenUrl;
+  const accountsUrl = config.accountsUrl;
+  const transactionsUrl = config.transactionsUrl;
+  const clientId = config.clientId;
+  const clientSecret = config.clientSecret;
+
+  if (!tokenUrl || !accountsUrl || !transactionsUrl) {
+    throw new Error(`Configurația Open Banking ${bankLabel} este incompletă (URL-uri lipsă).`);
+  }
+  if (!clientId || !clientSecret) {
+    throw new Error(`Configurația Open Banking ${bankLabel} este incompletă (client credentials lipsă).`);
+  }
+
+  return {
+    tokenUrl,
+    accountsUrl,
+    transactionsUrl,
+    clientId,
+    clientSecret,
   };
 }
 
@@ -295,12 +352,12 @@ function applyTransactionsUrlTemplate(url: string, externalAccountId: string): s
   return url.replace('{accountId}', encodeURIComponent(externalAccountId));
 }
 
-export async function exchangeBcrAccessToken(
-  input: ExchangeBcrTokenInput,
+export async function exchangeOpenBankingAccessToken(
+  input: ExchangeAccessTokenInput,
   options: { fetchImpl?: FetchImpl } = {},
 ): Promise<OAuthTokenExchangeResult> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const config = resolveConfig();
+  const config = resolveConfig(input.bankCode);
 
   const body = new URLSearchParams();
   body.set('grant_type', input.grantType);
@@ -357,12 +414,13 @@ export async function exchangeBcrAccessToken(
   };
 }
 
-export async function fetchBcrAccounts(
+export async function fetchOpenBankingAccounts(
+  bankCode: OpenBankingBankCode,
   accessToken: string,
   options: { fetchImpl?: FetchImpl } = {},
 ): Promise<OpenBankingAccountSnapshot[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const config = resolveConfig();
+  const config = resolveConfig(bankCode);
 
   const response = await fetchImpl(config.accountsUrl, {
     method: 'GET',
@@ -388,12 +446,12 @@ export async function fetchBcrAccounts(
   return accounts;
 }
 
-export async function fetchBcrTransactions(
-  input: FetchBcrTransactionsInput,
+export async function fetchOpenBankingTransactions(
+  input: FetchTransactionsInput,
   options: { fetchImpl?: FetchImpl } = {},
 ): Promise<OpenBankingTransactionSnapshot[]> {
   const fetchImpl = options.fetchImpl ?? fetch;
-  const config = resolveConfig();
+  const config = resolveConfig(input.bankCode);
   const endpoint = applyTransactionsUrlTemplate(config.transactionsUrl, input.externalAccountId);
   const url = new URL(endpoint);
   url.searchParams.set('fromDate', toIsoDay(input.fromDate));
@@ -419,7 +477,41 @@ export async function fetchBcrTransactions(
   return parseTransactionsPayload(payload);
 }
 
+export async function exchangeBcrAccessToken(
+  input: Omit<ExchangeAccessTokenInput, 'bankCode'>,
+  options: { fetchImpl?: FetchImpl } = {},
+): Promise<OAuthTokenExchangeResult> {
+  return exchangeOpenBankingAccessToken(
+    {
+      bankCode: 'BCR',
+      ...input,
+    },
+    options,
+  );
+}
+
+export async function fetchBcrAccounts(
+  accessToken: string,
+  options: { fetchImpl?: FetchImpl } = {},
+): Promise<OpenBankingAccountSnapshot[]> {
+  return fetchOpenBankingAccounts('BCR', accessToken, options);
+}
+
+export async function fetchBcrTransactions(
+  input: Omit<FetchTransactionsInput, 'bankCode'>,
+  options: { fetchImpl?: FetchImpl } = {},
+): Promise<OpenBankingTransactionSnapshot[]> {
+  return fetchOpenBankingTransactions(
+    {
+      bankCode: 'BCR',
+      ...input,
+    },
+    options,
+  );
+}
+
 export const __internal = {
   parseAccountsPayload,
   parseTransactionsPayload,
+  resolveConfig,
 };
