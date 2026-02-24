@@ -1,6 +1,7 @@
 import type { Permission, Role } from '../types';
 
 export type ModuleKey =
+  | 'admin'
   | 'dashboard'
   | 'accounts'
   | 'journal'
@@ -25,8 +26,8 @@ export const MENU_ITEMS: MenuItem[] = [
   { key: 'accounts', label: 'Plan conturi', requiredPermissions: ['accounts.read'] },
   { key: 'journal', label: 'Note contabile', requiredPermissions: ['journal.read'] },
   { key: 'partners', label: 'Parteneri', requiredPermissions: ['partners.read'] },
-  { key: 'invoices', label: 'Facturi și plăți', requiredPermissions: ['invoices.read'] },
-  { key: 'purchases', label: 'Achiziții AP', requiredPermissions: ['purchases.read'] },
+  { key: 'invoices', label: 'Facturi și încasări', requiredPermissions: ['invoices.read'] },
+  { key: 'purchases', label: 'Facturi furnizori și plăți', requiredPermissions: ['purchases.read'] },
   { key: 'stocks', label: 'Stocuri', requiredPermissions: ['stocks.read'] },
   { key: 'payroll', label: 'Salarii', requiredPermissions: ['payroll.read'] },
   { key: 'revisal', label: 'Revisal', requiredPermissions: ['payroll.read'] },
