@@ -52,9 +52,8 @@ jobs:
         run: npm ci
 
       - name: Prepare database (schema + hardening + seed)
-        env:
-          ADMIN_PASSWORD: ci-admin-${{ github.run_id }}-${{ github.run_attempt }}
         run: |
+          export ADMIN_PASSWORD="$(openssl rand -hex 24)"
           npm run db:bootstrap -w backend
           npm run seed -w backend
 
