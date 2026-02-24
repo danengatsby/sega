@@ -80,7 +80,7 @@ export function PurchasesPage({
   toNum,
 }: PurchasesPageProps) {
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column purchases-layout-narrow">
       <article className="panel">
         <h3>Administrare achiziții</h3>
         {canCreateSupplierInvoice ? (
@@ -263,6 +263,7 @@ export function PurchasesPage({
               <tr>
                 <th>Număr</th>
                 <th>Furnizor</th>
+                <th>Flux</th>
                 <th>Total</th>
                 <th>Primire</th>
                 <th>Scadență</th>
@@ -282,6 +283,9 @@ export function PurchasesPage({
                   <tr key={invoice.id}>
                     <td>{invoice.number}</td>
                     <td>{invoice.supplier.name}</td>
+                    <td>
+                      <span className="flow-badge flow-badge-outflow">Plată</span>
+                    </td>
                     <td>
                       {fmtCurrency(toNum(invoice.total))}
                       <small className="muted"> Rest: {fmtCurrency(open)}</small>

@@ -114,6 +114,7 @@ export function InvoicesPage({
               <tr>
                 <th>Număr</th>
                 <th>Client</th>
+                <th>Flux</th>
                 <th>Total</th>
                 <th>Scadent</th>
                 <th>Status</th>
@@ -138,6 +139,9 @@ export function InvoicesPage({
                   <tr key={invoice.id}>
                     <td>{invoice.number}</td>
                     <td>{invoice.partner.name}</td>
+                    <td>
+                      <span className="flow-badge flow-badge-inflow">Încasare</span>
+                    </td>
                     <td>
                       {fmtCurrency(toNum(invoice.total))}
                       <small className="muted"> Rest: {fmtCurrency(open)}</small>

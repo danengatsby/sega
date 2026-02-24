@@ -125,6 +125,30 @@ label {
   font-size: 0.94rem;
 }
 
+.login-credentials {
+  margin: 0.9rem 0 1rem;
+  padding: 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+  display: grid;
+  gap: 0.45rem;
+}
+
+.login-credentials-row {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.92rem;
+}
+
+.login-credentials-row code {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0.22rem 0.4rem;
+  color: var(--ink);
+}
+
 .app-shell {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -137,7 +161,7 @@ label {
   backdrop-filter: blur(8px);
   padding: 1.2rem;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   gap: 1rem;
 }
 
@@ -196,6 +220,26 @@ nav {
   background: var(--panel-soft);
 }
 
+.period-switcher {
+  font-size: 0.86rem;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.period-switcher-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.45rem;
+}
+
+.period-switcher select {
+  background: var(--panel-soft);
+}
+
+.sidebar-logout {
+  width: 100%;
+}
+
 .content {
   padding: 1.1rem;
   display: grid;
@@ -211,12 +255,45 @@ nav {
   animation: fade-slide 280ms ease;
 }
 
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
 .alert {
   background: #ffe8e5;
   color: var(--danger);
   border: 1px solid #f6b6ae;
   border-radius: 10px;
   padding: 0.7rem 0.85rem;
+}
+
+.connectivity-banner {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  padding: 0.8rem 0.9rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.9rem;
+  align-items: center;
+}
+
+.connectivity-banner-online {
+  background: #e8f8f0;
+  border-color: #a9dfbf;
+}
+
+.connectivity-banner-offline {
+  background: #fff4db;
+  border-color: #eed399;
+}
+
+.connectivity-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
 }
 
 .modal-backdrop {
@@ -245,6 +322,13 @@ nav {
   justify-content: space-between;
   align-items: center;
   gap: 0.75rem;
+}
+
+.flow-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .panel {
@@ -303,6 +387,28 @@ nav {
   display: grid;
   grid-template-columns: minmax(300px, 420px) 1fr;
   gap: 1rem;
+}
+
+.split-layout-single-column {
+  grid-template-columns: 1fr;
+}
+
+.purchases-layout-narrow {
+  width: min(1100px, 100%);
+  justify-self: center;
+}
+
+.payroll-layout {
+  align-items: start;
+}
+
+.payroll-admin-panel {
+  grid-row: span 2;
+}
+
+.payroll-runs-panel,
+.payroll-employees-panel {
+  grid-column: 2;
 }
 
 .stack-form {
@@ -392,6 +498,27 @@ th {
   font-weight: 600;
 }
 
+.flow-badge {
+  border-radius: 999px;
+  padding: 0.15rem 0.55rem;
+  border: 1px solid;
+  font-size: 0.76rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.flow-badge-inflow {
+  color: #155e75;
+  border-color: #99d8e5;
+  background: #e5f6fb;
+}
+
+.flow-badge-outflow {
+  color: #7a341a;
+  border-color: #f6c7a0;
+  background: #fff0e6;
+}
+
 .status-issued,
 .status-received,
 .status-partially_paid {
@@ -467,6 +594,13 @@ th {
 
   .split-layout {
     grid-template-columns: 1fr;
+  }
+
+  .payroll-admin-panel,
+  .payroll-runs-panel,
+  .payroll-employees-panel {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 

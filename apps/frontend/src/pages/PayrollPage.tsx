@@ -45,8 +45,8 @@ export function PayrollPage({
   toNum,
 }: PayrollPageProps) {
   return (
-    <section className="split-layout">
-      <article className="panel">
+    <section className="split-layout payroll-layout">
+      <article className="panel payroll-admin-panel">
         <h3>Administrare salarii</h3>
         {canCreateEmployee ? (
           <form onSubmit={(event) => void createEmployee(event)} className="stack-form">
@@ -124,7 +124,7 @@ export function PayrollPage({
         )}
       </article>
 
-      <article className="panel">
+      <article className="panel payroll-runs-panel">
         <h3>State salarii ({payrollRuns.length})</h3>
         <div className="table-wrap">
           <table>
@@ -156,8 +156,10 @@ export function PayrollPage({
             </tbody>
           </table>
         </div>
+      </article>
 
-        <h3 style={{ marginTop: '1rem' }}>Angajați ({employees.length})</h3>
+      <article className="panel payroll-employees-panel">
+        <h3>Angajați ({employees.length})</h3>
         <div className="table-wrap">
           <table>
             <thead>

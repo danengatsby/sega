@@ -10,8 +10,6 @@ interface ReportsPageProps {
   busyKey: string | null;
   downloadFinancialExport: (format: 'pdf' | 'excel' | 'xml') => Promise<void>;
   financialStatements: FinancialStatements | null;
-  anafPeriod: string;
-  setAnafPeriod: (value: string) => void;
   downloadAnafExport: (type: 'd300' | 'd394' | 'd112' | 'd101' | 'd100' | 'd205' | 'd392' | 'd393' | 'd406') => Promise<void>;
   checkAnafValidation: () => Promise<void>;
   canExportReports: boolean;
@@ -27,8 +25,6 @@ export function ReportsPage({
   busyKey,
   downloadFinancialExport,
   financialStatements,
-  anafPeriod,
-  setAnafPeriod,
   downloadAnafExport,
   checkAnafValidation,
   canExportReports,
@@ -63,10 +59,6 @@ export function ReportsPage({
 
       <article className="panel full-width">
         <h3>Export Declarații ANAF (XML)</h3>
-        <label style={{ maxWidth: '220px' }}>
-          Perioadă declarație
-          <input type="month" value={anafPeriod} onChange={(event) => setAnafPeriod(event.target.value)} />
-        </label>
         <div className="button-row">
           <button onClick={() => void downloadAnafExport('d300')} disabled={!canExportReports || busyKey === 'export-d300'}>
             {busyKey === 'export-d300' ? 'Generare D300...' : 'Export D300'}
@@ -99,7 +91,7 @@ export function ReportsPage({
             {busyKey === 'export-anaf-check' ? 'Verificare...' : 'Verifică validare ANAF'}
           </button>
         </div>
-        <p className="muted">Fișierele sunt generate pentru perioada selectată, în format XML gata pentru mapare la fluxurile ANAF.</p>
+        <p className="muted">Fișierele sunt generate pentru perioada activă, în format XML gata pentru mapare la fluxurile ANAF.</p>
         {anafInfo ? <p className="muted">{anafInfo}</p> : null}
       </article>
 
