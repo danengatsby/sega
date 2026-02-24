@@ -1,0 +1,32 @@
+groups:
+  - name: sega-slo-alerts
+    rules:
+      - alert: SegaBackendDown
+        expr: min_over_time(up{job="sega-backend"}[5m]) < 1
+        for: 5m
+        labels:
+          severity: critical
+          service: sega-backend
+        annotations:
+          summary: "Backend unavailable"
+          description: "Targetul sega-backend nu a fost disponibil in ultimele 5 minute."
+
+      - alert: SegaApiLatencyP95High
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job="sega-backend"}[5m])) by (le)) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          service: sega-backend
+        annotations:
+          summary: "p95 latency peste buget"
+          description: "Latenta p95 pe API depaseste 300ms timp de cel putin 10 minute."
+
+      - alert: SegaApi5xxRateHigh
+        expr: (sum(rate(http_requests_total{job="sega-backend",status=~"5.."}[5m])) / clamp_min(sum(rate(http_requests_total{job="sega-backend"}[5m])), 1)) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          service: sega-backend
+        annotations:
+          summary: "Rata 5xx ridicata"
+          description: "Rata raspunsurilor HTTP 5xx depaseste 1% in ultimele 10 minute."
