@@ -40,7 +40,7 @@ export function JournalPage({
   );
 
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Notă contabilă (debit/credit)</h3>
         {canCreateJournalEntry ? (
@@ -141,10 +141,7 @@ export function JournalPage({
         ) : (
           <p className="muted">Ai acces doar de citire pe notele contabile.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Ultimele note contabile</h3>
+        <h3 style={{ marginTop: '1rem' }}>Ultimele note contabile</h3>
         <label>
           Lista notelor contabile
           <select
