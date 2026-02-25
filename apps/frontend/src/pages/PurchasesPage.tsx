@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Partner, PurchaseApprovalDelegation, PurchaseApproverUser, SupplierInvoice } from '../types';
 
 interface SupplierInvoiceFormState {
@@ -79,6 +79,31 @@ export function PurchasesPage({
   fmtCurrency,
   toNum,
 }: PurchasesPageProps) {
+  const [selectedSupplierInvoiceId, setSelectedSupplierInvoiceId] = useState('');
+  const selectedSupplierInvoice = useMemo(
+    () => supplierInvoices.find((invoice) => invoice.id === selectedSupplierInvoiceId) ?? null,
+    [supplierInvoices, selectedSupplierInvoiceId],
+  );
+  const selectedSupplierInvoicePaidAmount = useMemo(
+    () => (selectedSupplierInvoice ? selectedSupplierInvoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0) : 0),
+    [selectedSupplierInvoice, toNum],
+  );
+  const selectedSupplierInvoiceOpenAmount = useMemo(
+    () =>
+      selectedSupplierInvoice ? Math.max(toNum(selectedSupplierInvoice.total) - selectedSupplierInvoicePaidAmount, 0) : 0,
+    [selectedSupplierInvoice, selectedSupplierInvoicePaidAmount, toNum],
+  );
+  const selectedSupplierInvoiceCanPay = useMemo(
+    () =>
+      Boolean(
+        selectedSupplierInvoice &&
+          selectedSupplierInvoice.status !== 'PAID' &&
+          selectedSupplierInvoiceOpenAmount > 0 &&
+          selectedSupplierInvoice.approvalStatus === 'APPROVED',
+      ),
+    [selectedSupplierInvoice, selectedSupplierInvoiceOpenAmount],
+  );
+
   return (
     <section className="split-layout split-layout-single-column purchases-layout-narrow">
       <article className="panel">
@@ -257,91 +282,107 @@ export function PurchasesPage({
 
       <article className="panel">
         <h3>Facturi furnizori: aprobare + plăți</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Număr</th>
-                <th>Furnizor</th>
-                <th>Flux</th>
-                <th>Total</th>
-                <th>Primire</th>
-                <th>Scadență</th>
-                <th>Status</th>
-                <th>Aprobare</th>
-                <th>Motiv respingere</th>
-                <th>Acțiuni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {supplierInvoices.map((invoice) => {
-                const paid = invoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0);
-                const open = Math.max(toNum(invoice.total) - paid, 0);
-                const canPay = invoice.status !== 'PAID' && open > 0 && invoice.approvalStatus === 'APPROVED';
-
-                return (
-                  <tr key={invoice.id}>
-                    <td>{invoice.number}</td>
-                    <td>{invoice.supplier.name}</td>
-                    <td>
-                      <span className="flow-badge flow-badge-outflow">Plată</span>
-                    </td>
-                    <td>
-                      {fmtCurrency(toNum(invoice.total))}
-                      <small className="muted"> Rest: {fmtCurrency(open)}</small>
-                    </td>
-                    <td>{new Date(invoice.receivedDate).toLocaleDateString('ro-RO')}</td>
-                    <td>{new Date(invoice.dueDate).toLocaleDateString('ro-RO')}</td>
-                    <td>
-                      <span className={`status status-${invoice.status.toLowerCase()}`}>{invoice.status}</span>
-                    </td>
-                    <td>
-                      <span className={`status status-${invoice.approvalStatus.toLowerCase()}`}>{approvalLabel(invoice)}</span>
-                    </td>
-                    <td>{invoice.approvalRejectedReason || '—'}</td>
-                    <td>
-                      <div className="button-row">
-                        {canApproveSupplierInvoice && invoice.approvalStatus !== 'APPROVED' && invoice.approvalStatus !== 'REJECTED' ? (
-                          <button onClick={() => approveSupplierInvoice(invoice)} disabled={busyKey === 'supplier-approve'}>
-                            Aprobă
-                          </button>
-                        ) : null}
-                        {canApproveSupplierInvoiceMobile &&
-                        invoice.approvalStatus !== 'APPROVED' &&
-                        invoice.approvalStatus !== 'REJECTED' ? (
-                          <button
-                            onClick={() => approveSupplierInvoiceMobile(invoice)}
-                            disabled={busyKey === 'supplier-approve-mobile'}
-                          >
-                            Aprobă mobil
-                          </button>
-                        ) : null}
-                        {canRejectSupplierInvoice &&
-                        invoice.approvalStatus !== 'APPROVED' &&
-                        invoice.approvalStatus !== 'REJECTED' ? (
-                          <button onClick={() => void rejectSupplierInvoice(invoice)} disabled={busyKey === 'supplier-reject'}>
-                            Respinge
-                          </button>
-                        ) : null}
-                        {canPay && canPaySupplierInvoice ? (
-                          <button onClick={() => paySupplierInvoice(invoice)} disabled={busyKey === 'payment-dialog-submit'}>
-                            Plătește
-                          </button>
-                        ) : canPay && !canPaySupplierInvoice ? (
-                          <span className="muted">Fără drept plată</span>
-                        ) : invoice.approvalStatus !== 'APPROVED' ? (
-                          <span className="muted">Așteaptă aprobare</span>
-                        ) : (
-                          <span className="muted">Complet</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <label>
+          Lista facturilor furnizori
+          <select
+            className="accounts-overflow-select"
+            size={15}
+            value={selectedSupplierInvoiceId}
+            onChange={(event) => setSelectedSupplierInvoiceId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează factura furnizor
+            </option>
+            {supplierInvoices.map((invoice) => {
+              const paid = invoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0);
+              const open = Math.max(toNum(invoice.total) - paid, 0);
+              return (
+                <option key={invoice.id} value={invoice.id}>
+                  {invoice.number} · {invoice.supplier.name} · Total {fmtCurrency(toNum(invoice.total))} · Rest{' '}
+                  {fmtCurrency(open)} · {approvalLabel(invoice)}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+        {selectedSupplierInvoice ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedSupplierInvoice.number} · {selectedSupplierInvoice.supplier.name}</strong>
+              <span>{new Date(selectedSupplierInvoice.dueDate).toLocaleDateString('ro-RO')}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>
+                Flux: <span className="flow-badge flow-badge-outflow">Plată</span>
+              </div>
+              <div>
+                Primire: {new Date(selectedSupplierInvoice.receivedDate).toLocaleDateString('ro-RO')} | Scadență:{' '}
+                {new Date(selectedSupplierInvoice.dueDate).toLocaleDateString('ro-RO')}
+              </div>
+              <div>
+                Status: <span className={`status status-${selectedSupplierInvoice.status.toLowerCase()}`}>{selectedSupplierInvoice.status}</span>
+              </div>
+              <div>
+                Aprobare:{' '}
+                <span className={`status status-${selectedSupplierInvoice.approvalStatus.toLowerCase()}`}>
+                  {approvalLabel(selectedSupplierInvoice)}
+                </span>
+              </div>
+              <div>
+                Total: {fmtCurrency(toNum(selectedSupplierInvoice.total))} | Plătit: {fmtCurrency(selectedSupplierInvoicePaidAmount)} |
+                Rest: {fmtCurrency(selectedSupplierInvoiceOpenAmount)}
+              </div>
+              <div>Motiv respingere: {selectedSupplierInvoice.approvalRejectedReason || '—'}</div>
+              <div>
+                Plăți: {selectedSupplierInvoice.payments.length}
+                {selectedSupplierInvoice.payments.length > 0
+                  ? ` (${selectedSupplierInvoice.payments
+                      .map((payment) => `${fmtCurrency(toNum(payment.amount))} @ ${new Date(payment.date).toLocaleDateString('ro-RO')}`)
+                      .join(', ')})`
+                  : ''}
+              </div>
+            </div>
+            <div className="button-row">
+              {canApproveSupplierInvoice &&
+              selectedSupplierInvoice.approvalStatus !== 'APPROVED' &&
+              selectedSupplierInvoice.approvalStatus !== 'REJECTED' ? (
+                <button onClick={() => approveSupplierInvoice(selectedSupplierInvoice)} disabled={busyKey === 'supplier-approve'}>
+                  Aprobă
+                </button>
+              ) : null}
+              {canApproveSupplierInvoiceMobile &&
+              selectedSupplierInvoice.approvalStatus !== 'APPROVED' &&
+              selectedSupplierInvoice.approvalStatus !== 'REJECTED' ? (
+                <button
+                  onClick={() => approveSupplierInvoiceMobile(selectedSupplierInvoice)}
+                  disabled={busyKey === 'supplier-approve-mobile'}
+                >
+                  Aprobă mobil
+                </button>
+              ) : null}
+              {canRejectSupplierInvoice &&
+              selectedSupplierInvoice.approvalStatus !== 'APPROVED' &&
+              selectedSupplierInvoice.approvalStatus !== 'REJECTED' ? (
+                <button onClick={() => void rejectSupplierInvoice(selectedSupplierInvoice)} disabled={busyKey === 'supplier-reject'}>
+                  Respinge
+                </button>
+              ) : null}
+              {selectedSupplierInvoiceCanPay && canPaySupplierInvoice ? (
+                <button onClick={() => paySupplierInvoice(selectedSupplierInvoice)} disabled={busyKey === 'payment-dialog-submit'}>
+                  Plătește
+                </button>
+              ) : selectedSupplierInvoiceCanPay && !canPaySupplierInvoice ? (
+                <span className="muted">Fără drept plată</span>
+              ) : selectedSupplierInvoice.approvalStatus !== 'APPROVED' ? (
+                <span className="muted">Așteaptă aprobare</span>
+              ) : (
+                <span className="muted">Complet</span>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează o factură furnizor din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
