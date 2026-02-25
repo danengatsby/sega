@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Invoice, Partner } from '../types';
 
 interface InvoiceFormState {
@@ -37,6 +37,32 @@ export function InvoicesPage({
   fmtCurrency,
   toNum,
 }: InvoicesPageProps) {
+  const [selectedInvoiceId, setSelectedInvoiceId] = useState('');
+  const selectedInvoice = useMemo(
+    () => invoices.find((invoice) => invoice.id === selectedInvoiceId) ?? null,
+    [invoices, selectedInvoiceId],
+  );
+  const selectedInvoicePaidAmount = useMemo(
+    () => (selectedInvoice ? selectedInvoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0) : 0),
+    [selectedInvoice, toNum],
+  );
+  const selectedInvoiceOpenAmount = useMemo(
+    () => (selectedInvoice ? Math.max(toNum(selectedInvoice.total) - selectedInvoicePaidAmount, 0) : 0),
+    [selectedInvoice, selectedInvoicePaidAmount, toNum],
+  );
+  const selectedInvoiceLatestReference = useMemo(() => {
+    if (!selectedInvoice) {
+      return '—';
+    }
+    const latestPayment = selectedInvoice.payments.reduce<Invoice['payments'][number] | null>((latest, payment) => {
+      if (!latest) {
+        return payment;
+      }
+      return new Date(payment.date).getTime() > new Date(latest.date).getTime() ? payment : latest;
+    }, null);
+    return latestPayment?.reference?.trim() || '—';
+  }, [selectedInvoice]);
+
   return (
     <section className="split-layout">
       <article className="panel">
@@ -108,66 +134,70 @@ export function InvoicesPage({
 
       <article className="panel">
         <h3>Facturi și încasări</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Număr</th>
-                <th>Client</th>
-                <th>Flux</th>
-                <th>Total</th>
-                <th>Scadent</th>
-                <th>Status</th>
-                <th>Ultima referință</th>
-                <th>Acțiuni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.map((invoice) => {
-                const paid = invoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0);
-                const open = Math.max(toNum(invoice.total) - paid, 0);
-                const latestPayment = invoice.payments.reduce<Invoice['payments'][number] | null>((latest, payment) => {
-                  if (!latest) {
-                    return payment;
-                  }
-
-                  return new Date(payment.date).getTime() > new Date(latest.date).getTime() ? payment : latest;
-                }, null);
-                const latestReference = latestPayment?.reference?.trim() || '—';
-
-                return (
-                  <tr key={invoice.id}>
-                    <td>{invoice.number}</td>
-                    <td>{invoice.partner.name}</td>
-                    <td>
-                      <span className="flow-badge flow-badge-inflow">Încasare</span>
-                    </td>
-                    <td>
-                      {fmtCurrency(toNum(invoice.total))}
-                      <small className="muted"> Rest: {fmtCurrency(open)}</small>
-                    </td>
-                    <td>{new Date(invoice.dueDate).toLocaleDateString('ro-RO')}</td>
-                    <td>
-                      <span className={`status status-${invoice.status.toLowerCase()}`}>{invoice.status}</span>
-                    </td>
-                    <td>{latestReference}</td>
-                    <td>
-                      {invoice.status !== 'PAID' && canCollectInvoice ? (
-                        <button onClick={() => collectInvoice(invoice)} disabled={busyKey === 'payment-dialog-submit'}>
-                          Încasează
-                        </button>
-                      ) : invoice.status !== 'PAID' ? (
-                        <span className="muted">Fără drept încasare</span>
-                      ) : (
-                        <span className="muted">Complet</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <label>
+          Lista facturilor
+          <select
+            className="accounts-overflow-select"
+            size={15}
+            value={selectedInvoiceId}
+            onChange={(event) => setSelectedInvoiceId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează factura
+            </option>
+            {invoices.map((invoice) => {
+              const paid = invoice.payments.reduce((acc, payment) => acc + toNum(payment.amount), 0);
+              const open = Math.max(toNum(invoice.total) - paid, 0);
+              return (
+                <option key={invoice.id} value={invoice.id}>
+                  {invoice.number} · {invoice.partner.name} · Total {fmtCurrency(toNum(invoice.total))} · Rest{' '}
+                  {fmtCurrency(open)} · {invoice.status}
+                </option>
+              );
+            })}
+          </select>
+        </label>
+        {selectedInvoice ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedInvoice.number} · {selectedInvoice.partner.name}</strong>
+              <span>{new Date(selectedInvoice.dueDate).toLocaleDateString('ro-RO')}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>
+                Flux: <span className="flow-badge flow-badge-inflow">Încasare</span>
+              </div>
+              <div>
+                Status:{' '}
+                <span className={`status status-${selectedInvoice.status.toLowerCase()}`}>{selectedInvoice.status}</span>
+              </div>
+              <div>
+                Total: {fmtCurrency(toNum(selectedInvoice.total))} | Încasat:{' '}
+                {fmtCurrency(selectedInvoicePaidAmount)} | Rest: {fmtCurrency(selectedInvoiceOpenAmount)}
+              </div>
+              <div>Ultima referință: {selectedInvoiceLatestReference}</div>
+              <div>
+                Încasări: {selectedInvoice.payments.length}
+                {selectedInvoice.payments.length > 0
+                  ? ` (${selectedInvoice.payments
+                      .map((payment) => `${fmtCurrency(toNum(payment.amount))} @ ${new Date(payment.date).toLocaleDateString('ro-RO')}`)
+                      .join(', ')})`
+                  : ''}
+              </div>
+            </div>
+            {selectedInvoice.status !== 'PAID' && canCollectInvoice ? (
+              <button onClick={() => collectInvoice(selectedInvoice)} disabled={busyKey === 'payment-dialog-submit'}>
+                Încasează
+              </button>
+            ) : selectedInvoice.status !== 'PAID' ? (
+              <p className="muted">Fără drept încasare</p>
+            ) : (
+              <p className="muted">Factura este încasată complet.</p>
+            )}
+          </div>
+        ) : (
+          <p className="muted">Selectează o factură din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
