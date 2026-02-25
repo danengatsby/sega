@@ -11,17 +11,11 @@ interface AssetFormState {
   startDate: string;
 }
 
-interface DepreciationFormState {
-  period: string;
-}
-
 interface AssetsPageProps {
   assetForm: AssetFormState;
   setAssetForm: Dispatch<SetStateAction<AssetFormState>>;
   createAsset: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   canCreateAsset: boolean;
-  depreciationForm: DepreciationFormState;
-  setDepreciationForm: Dispatch<SetStateAction<DepreciationFormState>>;
   runDepreciation: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   canRunDepreciation: boolean;
   busyKey: string | null;
@@ -35,8 +29,6 @@ export function AssetsPage({
   setAssetForm,
   createAsset,
   canCreateAsset,
-  depreciationForm,
-  setDepreciationForm,
   runDepreciation,
   canRunDepreciation,
   busyKey,
@@ -139,15 +131,7 @@ export function AssetsPage({
         <h3 style={{ marginTop: '1rem' }}>Rulare amortizare</h3>
         {canRunDepreciation ? (
           <form onSubmit={(event) => void runDepreciation(event)} className="stack-form">
-            <label>
-              Perioadă
-              <input
-                type="month"
-                value={depreciationForm.period}
-                onChange={(event) => setDepreciationForm({ period: event.target.value })}
-                required
-              />
-            </label>
+            <p className="muted">Perioada este stabilită automat la luna curentă.</p>
             <button type="submit" disabled={busyKey === 'depreciation'}>
               {busyKey === 'depreciation' ? 'Procesare...' : 'Generează amortizare + note contabile'}
             </button>

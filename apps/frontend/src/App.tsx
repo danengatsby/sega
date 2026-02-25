@@ -342,9 +342,6 @@ function App() {
     usefulLifeMonths: '60',
     startDate: localDateTime(0),
   });
-  const [depreciationForm, setDepreciationForm] = useState({
-    period: new Date().toISOString().slice(0, 7),
-  });
   const [anafPeriod, setAnafPeriod] = useState(() => clampAnafPeriod(''));
   const [purchasesDashboardFilter, setPurchasesDashboardFilter] = useState({
     asOf: new Date().toISOString().slice(0, 10),
@@ -1642,8 +1639,9 @@ function App() {
     setError('');
 
     try {
+      const depreciationPeriod = new Date().toISOString().slice(0, 7);
       const result = await submitWriteOrQueue('/assets/run-depreciation', {
-        period: depreciationForm.period,
+        period: depreciationPeriod,
         autoPost: true,
       });
       if (!result.queued) {
@@ -3206,8 +3204,6 @@ function App() {
           setAssetForm={setAssetForm}
           createAsset={createAsset}
           canCreateAsset={canAction.createAsset}
-          depreciationForm={depreciationForm}
-          setDepreciationForm={setDepreciationForm}
           runDepreciation={runDepreciation}
           canRunDepreciation={canAction.runDepreciation}
           busyKey={busyKey}
