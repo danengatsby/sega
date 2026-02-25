@@ -34,7 +34,7 @@ export function PartnersPage({
   );
 
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Administrare parteneri</h3>
         {canCreatePartner ? (
@@ -79,10 +79,7 @@ export function PartnersPage({
         ) : (
           <p className="muted">Ai acces doar de citire pe modulul de parteneri.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Registru parteneri ({partners.length})</h3>
+        <h3 style={{ marginTop: '1rem' }}>Registru parteneri ({partners.length})</h3>
         <label>
           Lista partenerilor
           <select
