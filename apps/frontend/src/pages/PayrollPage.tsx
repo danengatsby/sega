@@ -9,17 +9,11 @@ interface EmployeeFormState {
   personalDeduction: string;
 }
 
-interface PayrollFormState {
-  period: string;
-}
-
 interface PayrollPageProps {
   employeeForm: EmployeeFormState;
   setEmployeeForm: Dispatch<SetStateAction<EmployeeFormState>>;
   createEmployee: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   canCreateEmployee: boolean;
-  payrollForm: PayrollFormState;
-  setPayrollForm: Dispatch<SetStateAction<PayrollFormState>>;
   runPayroll: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   canRunPayroll: boolean;
   busyKey: string | null;
@@ -34,8 +28,6 @@ export function PayrollPage({
   setEmployeeForm,
   createEmployee,
   canCreateEmployee,
-  payrollForm,
-  setPayrollForm,
   runPayroll,
   canRunPayroll,
   busyKey,
@@ -117,15 +109,7 @@ export function PayrollPage({
         <h3 style={{ marginTop: '1rem' }}>Rulare stat salarii</h3>
         {canRunPayroll ? (
           <form onSubmit={(event) => void runPayroll(event)} className="stack-form">
-            <label>
-              Perioadă
-              <input
-                type="month"
-                value={payrollForm.period}
-                onChange={(event) => setPayrollForm({ period: event.target.value })}
-                required
-              />
-            </label>
+            <p className="muted">Perioada se stabilește automat la luna curentă.</p>
             <button type="submit" disabled={busyKey === 'payroll'}>
               {busyKey === 'payroll' ? 'Procesare...' : 'Generează salarii + note contabile'}
             </button>

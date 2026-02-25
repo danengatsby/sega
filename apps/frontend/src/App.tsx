@@ -319,9 +319,6 @@ function App() {
     grossSalary: '8000',
     personalDeduction: '0',
   });
-  const [payrollForm, setPayrollForm] = useState({
-    period: new Date().toISOString().slice(0, 7),
-  });
   const [revisalGenerateForm, setRevisalGenerateForm] = useState({
     deliveryReference: '',
   });
@@ -1455,8 +1452,9 @@ function App() {
     setError('');
 
     try {
+      const payrollPeriod = new Date().toISOString().slice(0, 7);
       const result = await submitWriteOrQueue('/payroll/runs/generate', {
-        period: payrollForm.period,
+        period: payrollPeriod,
         autoPost: true,
       });
 
@@ -3171,8 +3169,6 @@ function App() {
           setEmployeeForm={setEmployeeForm}
           createEmployee={createEmployee}
           canCreateEmployee={canAction.createEmployee}
-          payrollForm={payrollForm}
-          setPayrollForm={setPayrollForm}
           runPayroll={runPayroll}
           canRunPayroll={canAction.runPayroll}
           busyKey={busyKey}
