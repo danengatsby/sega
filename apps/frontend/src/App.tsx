@@ -2937,6 +2937,16 @@ function App() {
         }}
         onConfirmPasswordChange={(value) => setRegisterForm((prev) => ({ ...prev, confirmPassword: value }))}
         onMfaCodeChange={(value) => setLoginForm((prev) => ({ ...prev, mfaCode: value }))}
+        onApplyLoginHint={(hint) => {
+          setAuthMode('login');
+          setLoginRequiresMfaCode(false);
+          setError('');
+          setLoginForm({
+            email: hint.email === 'n/a' ? '' : hint.email,
+            password: hint.password === 'n/a' ? '' : hint.password,
+            mfaCode: '',
+          });
+        }}
         onSubmit={authMode === 'register' ? handleRegister : handleLogin}
       />
     );

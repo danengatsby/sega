@@ -21,6 +21,7 @@ interface LoginScreenProps {
   onPasswordChange: (value: string) => void;
   onConfirmPasswordChange: (value: string) => void;
   onMfaCodeChange: (value: string) => void;
+  onApplyLoginHint?: (hint: LoginHintCredentials) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
 }
 
@@ -42,6 +43,7 @@ export function LoginScreen(props: LoginScreenProps) {
     onPasswordChange,
     onConfirmPasswordChange,
     onMfaCodeChange,
+    onApplyLoginHint,
     onSubmit,
   } = props;
 
@@ -58,6 +60,16 @@ export function LoginScreen(props: LoginScreenProps) {
                 <span>{hint.label}</span>
                 <code>{hint.email}</code>
                 <code>{hint.password}</code>
+                {hint.label.toLowerCase().includes('3 firme') ? (
+                  <button
+                    type="button"
+                    className="login-hint-action"
+                    onClick={() => onApplyLoginHint?.(hint)}
+                    disabled={busy || hint.email === 'n/a' || hint.password === 'n/a'}
+                  >
+                    Folosește credențialele Contabil 3 firme
+                  </button>
+                ) : null}
               </div>
             ))}
           </section>
