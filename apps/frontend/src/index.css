@@ -429,6 +429,19 @@ nav {
   gap: 0.6rem;
 }
 
+.stocks-summary-grid {
+  margin-top: 1rem;
+  display: grid;
+  gap: 1rem;
+}
+
+.stocks-summary-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel-soft);
+  padding: 0.85rem;
+}
+
 .line-editor {
   display: grid;
   gap: 0.45rem;

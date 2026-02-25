@@ -85,7 +85,7 @@ export function StocksPage({
   toNum,
 }: StocksPageProps) {
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Articole stoc</h3>
         {canCreateStockItem ? (
@@ -389,82 +389,85 @@ export function StocksPage({
         ) : (
           <p className="muted">Nu ai permisiunea de a face regularizări de inventar.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Stocuri curente ({stockItems.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Cod</th>
-                <th>Denumire</th>
-                <th>UM</th>
-                <th>Metodă</th>
-                <th>Stoc</th>
-                <th>Cost mediu</th>
-                <th>Valoare stoc</th>
-                <th>Stoc minim</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stockItems.map((item) => {
-                const qty = toNum(item.quantityOnHand);
-                const avg = toNum(item.avgUnitCost);
-                const minQty = toNum(item.minStockQty);
-                const stockValue = qty * avg;
-                const isLow = qty < minQty;
-                return (
-                  <tr key={item.id}>
-                    <td>{item.code}</td>
-                    <td>{item.name}</td>
-                    <td>{item.unit}</td>
-                    <td>{item.valuationMethod}</td>
-                    <td>{qty.toFixed(3)}</td>
-                    <td>{avg.toFixed(4)}</td>
-                    <td>{fmtCurrency(stockValue)}</td>
-                    <td>{minQty.toFixed(3)}</td>
-                    <td>{isLow ? 'SUB MINIM' : 'OK'}</td>
+        <div className="stocks-summary-grid">
+          <section className="stocks-summary-card">
+            <h3>Stocuri curente ({stockItems.length})</h3>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cod</th>
+                    <th>Denumire</th>
+                    <th>UM</th>
+                    <th>Metodă</th>
+                    <th>Stoc</th>
+                    <th>Cost mediu</th>
+                    <th>Valoare stoc</th>
+                    <th>Stoc minim</th>
+                    <th>Status</th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                </thead>
+                <tbody>
+                  {stockItems.map((item) => {
+                    const qty = toNum(item.quantityOnHand);
+                    const avg = toNum(item.avgUnitCost);
+                    const minQty = toNum(item.minStockQty);
+                    const stockValue = qty * avg;
+                    const isLow = qty < minQty;
+                    return (
+                      <tr key={item.id}>
+                        <td>{item.code}</td>
+                        <td>{item.name}</td>
+                        <td>{item.unit}</td>
+                        <td>{item.valuationMethod}</td>
+                        <td>{qty.toFixed(3)}</td>
+                        <td>{avg.toFixed(4)}</td>
+                        <td>{fmtCurrency(stockValue)}</td>
+                        <td>{minQty.toFixed(3)}</td>
+                        <td>{isLow ? 'SUB MINIM' : 'OK'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-        <h3 style={{ marginTop: '1rem' }}>Mișcări recente ({stockMovements.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Tip</th>
-                <th>Articol</th>
-                <th>Cantitate</th>
-                <th>Cost unitar</th>
-                <th>Valoare</th>
-                <th>Stoc rezultat</th>
-                <th>Document</th>
-              </tr>
-            </thead>
-            <tbody>
-              {stockMovements.map((movement) => (
-                <tr key={movement.id}>
-                  <td>{new Date(movement.movementDate).toLocaleString()}</td>
-                  <td>{movement.type}</td>
-                  <td>
-                    {movement.item.code} - {movement.item.name}
-                  </td>
-                  <td>{toNum(movement.quantity).toFixed(3)}</td>
-                  <td>{toNum(movement.unitCost).toFixed(4)}</td>
-                  <td>{fmtCurrency(toNum(movement.totalCost))}</td>
-                  <td>{toNum(movement.resultingQuantity).toFixed(3)}</td>
-                  <td>{movement.documentNumber ?? '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <section className="stocks-summary-card">
+            <h3>Mișcări recente ({stockMovements.length})</h3>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tip</th>
+                    <th>Articol</th>
+                    <th>Cantitate</th>
+                    <th>Cost unitar</th>
+                    <th>Valoare</th>
+                    <th>Stoc rezultat</th>
+                    <th>Document</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {stockMovements.map((movement) => (
+                    <tr key={movement.id}>
+                      <td>{new Date(movement.movementDate).toLocaleString()}</td>
+                      <td>{movement.type}</td>
+                      <td>
+                        {movement.item.code} - {movement.item.name}
+                      </td>
+                      <td>{toNum(movement.quantity).toFixed(3)}</td>
+                      <td>{toNum(movement.unitCost).toFixed(4)}</td>
+                      <td>{fmtCurrency(toNum(movement.totalCost))}</td>
+                      <td>{toNum(movement.resultingQuantity).toFixed(3)}</td>
+                      <td>{movement.documentNumber ?? '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
         </div>
       </article>
     </section>
