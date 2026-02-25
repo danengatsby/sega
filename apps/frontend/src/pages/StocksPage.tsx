@@ -85,9 +85,14 @@ export function StocksPage({
   toNum,
 }: StocksPageProps) {
   const [selectedStockItemId, setSelectedStockItemId] = useState('');
+  const [selectedStockMovementId, setSelectedStockMovementId] = useState('');
   const selectedStockItem = useMemo(
     () => stockItems.find((item) => item.id === selectedStockItemId) ?? null,
     [stockItems, selectedStockItemId],
+  );
+  const selectedStockMovement = useMemo(
+    () => stockMovements.find((movement) => movement.id === selectedStockMovementId) ?? null,
+    [stockMovements, selectedStockMovementId],
   );
   const selectedStockItemQty = useMemo(() => (selectedStockItem ? toNum(selectedStockItem.quantityOnHand) : 0), [selectedStockItem, toNum]);
   const selectedStockItemAvgCost = useMemo(() => (selectedStockItem ? toNum(selectedStockItem.avgUnitCost) : 0), [selectedStockItem, toNum]);
@@ -452,38 +457,46 @@ export function StocksPage({
 
           <section className="stocks-summary-card">
             <h3>Mișcări recente ({stockMovements.length})</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Data</th>
-                    <th>Tip</th>
-                    <th>Articol</th>
-                    <th>Cantitate</th>
-                    <th>Cost unitar</th>
-                    <th>Valoare</th>
-                    <th>Stoc rezultat</th>
-                    <th>Document</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockMovements.map((movement) => (
-                    <tr key={movement.id}>
-                      <td>{new Date(movement.movementDate).toLocaleString()}</td>
-                      <td>{movement.type}</td>
-                      <td>
-                        {movement.item.code} - {movement.item.name}
-                      </td>
-                      <td>{toNum(movement.quantity).toFixed(3)}</td>
-                      <td>{toNum(movement.unitCost).toFixed(4)}</td>
-                      <td>{fmtCurrency(toNum(movement.totalCost))}</td>
-                      <td>{toNum(movement.resultingQuantity).toFixed(3)}</td>
-                      <td>{movement.documentNumber ?? '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <label>
+              Lista mișcărilor
+              <select
+                className="accounts-overflow-select"
+                size={12}
+                value={selectedStockMovementId}
+                onChange={(event) => setSelectedStockMovementId(event.target.value)}
+              >
+                <option value="" disabled>
+                  Selectează mișcarea
+                </option>
+                {stockMovements.map((movement) => (
+                  <option key={movement.id} value={movement.id}>
+                    {new Date(movement.movementDate).toLocaleDateString('ro-RO')} · {movement.type} · {movement.item.code} -{' '}
+                    {movement.item.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {selectedStockMovement ? (
+              <div className="timeline-item journal-entry-preview">
+                <header>
+                  <strong>
+                    {selectedStockMovement.item.code} - {selectedStockMovement.item.name}
+                  </strong>
+                  <span>{selectedStockMovement.type}</span>
+                </header>
+                <div className="journal-entry-preview-lines">
+                  <div>Data: {new Date(selectedStockMovement.movementDate).toLocaleString('ro-RO')}</div>
+                  <div>Cantitate: {toNum(selectedStockMovement.quantity).toFixed(3)}</div>
+                  <div>Cost unitar: {toNum(selectedStockMovement.unitCost).toFixed(4)}</div>
+                  <div>Valoare: {fmtCurrency(toNum(selectedStockMovement.totalCost))}</div>
+                  <div>Stoc rezultat: {toNum(selectedStockMovement.resultingQuantity).toFixed(3)}</div>
+                  <div>Document: {selectedStockMovement.documentNumber ?? '-'}</div>
+                  <div>Observații: {selectedStockMovement.note ?? '-'}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="muted">Selectează o mișcare din listă pentru afișarea în container.</p>
+            )}
           </section>
         </div>
       </article>
