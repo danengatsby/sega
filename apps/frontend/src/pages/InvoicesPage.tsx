@@ -64,7 +64,7 @@ export function InvoicesPage({
   }, [selectedInvoice]);
 
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Administrare facturi client</h3>
         {canCreateInvoice ? (
@@ -130,10 +130,7 @@ export function InvoicesPage({
         ) : (
           <p className="muted">Ai acces doar de citire pe facturi client.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Facturi și încasări</h3>
+        <h3 style={{ marginTop: '1rem' }}>Facturi și încasări</h3>
         <label>
           Lista facturilor
           <select
