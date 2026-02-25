@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { RevisalDelivery, RevisalDeliveryChannel } from '../types';
 
 interface RevisalGenerateFormState {
@@ -59,6 +59,11 @@ export function RevisalPage({
   downloadRevisalXml,
 }: RevisalPageProps) {
   const pendingDeliveries = revisalExports.filter((entry) => entry.status !== 'DELIVERED');
+  const [selectedRevisalExportId, setSelectedRevisalExportId] = useState('');
+  const selectedRevisalExport = useMemo(
+    () => revisalExports.find((entry) => entry.id === selectedRevisalExportId) ?? null,
+    [revisalExports, selectedRevisalExportId],
+  );
 
   return (
     <section className="split-layout">
@@ -172,63 +177,58 @@ export function RevisalPage({
 
       <article className="panel">
         <h3>Exporturi Revisal ({revisalExports.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Perioadă</th>
-                <th>Referință</th>
-                <th>Status</th>
-                <th>Canal</th>
-                <th>Angajați</th>
-                <th>Generat</th>
-                <th>Livrat</th>
-                <th>Validare</th>
-                <th>Acțiuni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {revisalExports.map((delivery) => {
-                const warningCount = toCount(delivery.validationWarnings);
-                const errorCount = toCount(delivery.validationErrors);
-                const validationLabel = delivery.validationPerformed
-                  ? delivery.validationPassed
+        <label>
+          Lista exporturilor Revisal
+          <select
+            className="accounts-overflow-select"
+            size={12}
+            value={selectedRevisalExportId}
+            onChange={(event) => setSelectedRevisalExportId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează exportul
+            </option>
+            {revisalExports.map((delivery) => (
+              <option key={delivery.id} value={delivery.id}>
+                {delivery.period} · {delivery.deliveryReference} · {delivery.status}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedRevisalExport ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedRevisalExport.period} · {selectedRevisalExport.deliveryReference}</strong>
+              <span className={`status status-${selectedRevisalExport.status.toLowerCase()}`}>{selectedRevisalExport.status}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>Canal: {selectedRevisalExport.channel ? CHANNEL_LABEL[selectedRevisalExport.channel] : '—'}</div>
+              <div>Angajați: {selectedRevisalExport.employeeCount}</div>
+              <div>Generat: {toLocalDateTime(selectedRevisalExport.createdAt)}</div>
+              <div>Livrat: {toLocalDateTime(selectedRevisalExport.deliveredAt)}</div>
+              <div>Checksum: {selectedRevisalExport.xmlChecksum.slice(0, 24)}...</div>
+              <div>
+                Validare:{' '}
+                {selectedRevisalExport.validationPerformed
+                  ? selectedRevisalExport.validationPassed
                     ? 'XSD OK'
-                    : `XSD NOK (${errorCount})`
-                  : 'XSD N/A';
-
-                return (
-                  <tr key={delivery.id}>
-                    <td>{delivery.period}</td>
-                    <td>
-                      <div>{delivery.deliveryReference}</div>
-                      <small className="muted">{delivery.xmlChecksum.slice(0, 12)}...</small>
-                    </td>
-                    <td>
-                      <span className={`status status-${delivery.status.toLowerCase()}`}>{delivery.status}</span>
-                    </td>
-                    <td>{delivery.channel ? CHANNEL_LABEL[delivery.channel] : '—'}</td>
-                    <td>{delivery.employeeCount}</td>
-                    <td>{toLocalDateTime(delivery.createdAt)}</td>
-                    <td>{toLocalDateTime(delivery.deliveredAt)}</td>
-                    <td>
-                      {validationLabel}
-                      {warningCount > 0 ? <small className="muted"> | Warn {warningCount}</small> : null}
-                    </td>
-                    <td>
-                      <button
-                        onClick={() => void downloadRevisalXml(delivery)}
-                        disabled={busyKey === `revisal-download-${delivery.id}`}
-                      >
-                        {busyKey === `revisal-download-${delivery.id}` ? 'Descărcare...' : 'XML'}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    : `XSD NOK (${toCount(selectedRevisalExport.validationErrors)})`
+                  : 'XSD N/A'}
+                {toCount(selectedRevisalExport.validationWarnings) > 0
+                  ? ` | Warn ${toCount(selectedRevisalExport.validationWarnings)}`
+                  : ''}
+              </div>
+            </div>
+            <button
+              onClick={() => void downloadRevisalXml(selectedRevisalExport)}
+              disabled={busyKey === `revisal-download-${selectedRevisalExport.id}`}
+            >
+              {busyKey === `revisal-download-${selectedRevisalExport.id}` ? 'Descărcare...' : 'XML'}
+            </button>
+          </div>
+        ) : (
+          <p className="muted">Selectează un export din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
