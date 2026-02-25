@@ -444,6 +444,11 @@ nav {
   overflow-x: auto;
 }
 
+.accounts-overflow-select {
+  margin-top: 0.45rem;
+  width: 100%;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;

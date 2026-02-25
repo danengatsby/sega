@@ -25,6 +25,10 @@ export function AccountsPage({
   busyKey,
   accounts,
 }: AccountsPageProps) {
+  const VISIBLE_ACCOUNTS_LIMIT = 15;
+  const visibleAccounts = accounts.slice(0, VISIBLE_ACCOUNTS_LIMIT);
+  const remainingAccounts = accounts.slice(VISIBLE_ACCOUNTS_LIMIT);
+
   return (
     <section className="split-layout">
       <article className="panel">
@@ -83,7 +87,7 @@ export function AccountsPage({
               </tr>
             </thead>
             <tbody>
-              {accounts.map((account) => (
+              {visibleAccounts.map((account) => (
                 <tr key={account.id}>
                   <td>{account.code}</td>
                   <td>{account.name}</td>
@@ -95,6 +99,28 @@ export function AccountsPage({
             </tbody>
           </table>
         </div>
+        {remainingAccounts.length > 0 ? (
+          <>
+            <p className="muted">
+              Sunt afișate primele {VISIBLE_ACCOUNTS_LIMIT} conturi. Restul ({remainingAccounts.length}) sunt în lista
+              derulantă.
+            </p>
+            <label>
+              Restul conturilor
+              <select className="accounts-overflow-select" size={10} defaultValue="">
+                <option value="" disabled>
+                  Selectează un cont
+                </option>
+                {remainingAccounts.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.code} - {account.name} ({account.type}, {account.currency},{' '}
+                    {account.isActive ? 'Activ' : 'Inactiv'})
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
+        ) : null}
       </article>
     </section>
   );
