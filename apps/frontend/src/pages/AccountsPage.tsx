@@ -26,7 +26,7 @@ export function AccountsPage({
   accounts,
 }: AccountsPageProps) {
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Administrare conturi</h3>
         {canCreateAccount ? (
@@ -67,10 +67,7 @@ export function AccountsPage({
         ) : (
           <p className="muted">Ai acces doar de citire pe modulul de conturi.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Plan de conturi ({accounts.length})</h3>
+        <h3 style={{ marginTop: '1rem' }}>Plan de conturi ({accounts.length})</h3>
         <label>
           Lista conturilor
           <select className="accounts-overflow-select" size={15} defaultValue="">
