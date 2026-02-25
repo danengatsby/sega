@@ -135,7 +135,7 @@ const ENDPOINT_SCENARIOS: EndpointScenario[] = [
     method: 'GET',
     path: '/audit-log',
     requiredPermissions: [PERMISSIONS.AUDIT_READ],
-    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
   },
   {
     name: 'POST /periods/:period/close',

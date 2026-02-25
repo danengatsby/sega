@@ -85,7 +85,7 @@ const OPERATION_MATRIX: OperationScenario[] = [
   {
     operation: 'citește audit trail',
     requiredPermissions: [PERMISSIONS.AUDIT_READ],
-    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
   },
 ];
 

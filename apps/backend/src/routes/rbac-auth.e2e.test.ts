@@ -121,7 +121,7 @@ const RBAC_SCENARIOS: EndpointScenario[] = [
     method: 'GET',
     path: '/api/audit-log?take=5',
     requiredPermissions: [PERMISSIONS.AUDIT_READ],
-    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
     expectedAllowedStatus: 200,
   },
   {
@@ -129,7 +129,7 @@ const RBAC_SCENARIOS: EndpointScenario[] = [
     method: 'GET',
     path: '/api/compliance/report',
     requiredPermissions: [PERMISSIONS.AUDIT_READ],
-    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
+    allowedRoles: [Role.ADMIN, Role.CHIEF_ACCOUNTANT, Role.ACCOUNTANT, Role.MANAGER, Role.AUDITOR],
     expectedAllowedStatus: 200,
   },
   {
