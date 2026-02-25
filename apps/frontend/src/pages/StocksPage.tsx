@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { StockItem, StockMovement } from '../types';
 
 interface StockItemFormState {
@@ -84,6 +84,17 @@ export function StocksPage({
   fmtCurrency,
   toNum,
 }: StocksPageProps) {
+  const [selectedStockItemId, setSelectedStockItemId] = useState('');
+  const selectedStockItem = useMemo(
+    () => stockItems.find((item) => item.id === selectedStockItemId) ?? null,
+    [stockItems, selectedStockItemId],
+  );
+  const selectedStockItemQty = useMemo(() => (selectedStockItem ? toNum(selectedStockItem.quantityOnHand) : 0), [selectedStockItem, toNum]);
+  const selectedStockItemAvgCost = useMemo(() => (selectedStockItem ? toNum(selectedStockItem.avgUnitCost) : 0), [selectedStockItem, toNum]);
+  const selectedStockItemMinQty = useMemo(() => (selectedStockItem ? toNum(selectedStockItem.minStockQty) : 0), [selectedStockItem, toNum]);
+  const selectedStockItemValue = selectedStockItemQty * selectedStockItemAvgCost;
+  const selectedStockItemIsLow = selectedStockItemQty < selectedStockItemMinQty;
+
   return (
     <section className="split-layout split-layout-single-column">
       <article className="panel">
@@ -392,45 +403,51 @@ export function StocksPage({
         <div className="stocks-summary-grid">
           <section className="stocks-summary-card">
             <h3>Stocuri curente ({stockItems.length})</h3>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Cod</th>
-                    <th>Denumire</th>
-                    <th>UM</th>
-                    <th>Metodă</th>
-                    <th>Stoc</th>
-                    <th>Cost mediu</th>
-                    <th>Valoare stoc</th>
-                    <th>Stoc minim</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stockItems.map((item) => {
-                    const qty = toNum(item.quantityOnHand);
-                    const avg = toNum(item.avgUnitCost);
-                    const minQty = toNum(item.minStockQty);
-                    const stockValue = qty * avg;
-                    const isLow = qty < minQty;
-                    return (
-                      <tr key={item.id}>
-                        <td>{item.code}</td>
-                        <td>{item.name}</td>
-                        <td>{item.unit}</td>
-                        <td>{item.valuationMethod}</td>
-                        <td>{qty.toFixed(3)}</td>
-                        <td>{avg.toFixed(4)}</td>
-                        <td>{fmtCurrency(stockValue)}</td>
-                        <td>{minQty.toFixed(3)}</td>
-                        <td>{isLow ? 'SUB MINIM' : 'OK'}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <label>
+              Lista stocurilor
+              <select
+                className="accounts-overflow-select"
+                size={12}
+                value={selectedStockItemId}
+                onChange={(event) => setSelectedStockItemId(event.target.value)}
+              >
+                <option value="" disabled>
+                  Selectează stocul
+                </option>
+                {stockItems.map((item) => {
+                  const qty = toNum(item.quantityOnHand);
+                  const minQty = toNum(item.minStockQty);
+                  return (
+                    <option key={item.id} value={item.id}>
+                      {item.code} - {item.name} · Stoc {qty.toFixed(3)} {item.unit} · {qty < minQty ? 'SUB MINIM' : 'OK'}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            {selectedStockItem ? (
+              <div className="timeline-item journal-entry-preview">
+                <header>
+                  <strong>
+                    {selectedStockItem.code} - {selectedStockItem.name}
+                  </strong>
+                  <span>{selectedStockItem.valuationMethod}</span>
+                </header>
+                <div className="journal-entry-preview-lines">
+                  <div>
+                    Stoc curent: {selectedStockItemQty.toFixed(3)} {selectedStockItem.unit}
+                  </div>
+                  <div>Cost mediu: {selectedStockItemAvgCost.toFixed(4)}</div>
+                  <div>Valoare stoc: {fmtCurrency(selectedStockItemValue)}</div>
+                  <div>
+                    Stoc minim: {selectedStockItemMinQty.toFixed(3)} {selectedStockItem.unit}
+                  </div>
+                  <div>Status: {selectedStockItemIsLow ? 'SUB MINIM' : 'OK'}</div>
+                </div>
+              </div>
+            ) : (
+              <p className="muted">Selectează un stoc din listă pentru afișarea în container.</p>
+            )}
           </section>
 
           <section className="stocks-summary-card">
