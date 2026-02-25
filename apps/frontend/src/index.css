@@ -490,6 +490,16 @@ th {
   margin-bottom: 0.2rem;
 }
 
+.journal-entry-preview {
+  margin-top: 0.65rem;
+}
+
+.journal-entry-preview-lines {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.88rem;
+}
+
 .muted {
   color: var(--muted);
   font-size: 0.86rem;

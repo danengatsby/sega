@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Account, JournalEntry } from '../types';
 
 interface JournalFormLine {
@@ -32,6 +32,13 @@ export function JournalPage({
   accounts,
   journalEntries,
 }: JournalPageProps) {
+  const latestJournalEntries = useMemo(() => journalEntries.slice(0, 30), [journalEntries]);
+  const [selectedJournalEntryId, setSelectedJournalEntryId] = useState('');
+  const selectedJournalEntry = useMemo(
+    () => latestJournalEntries.find((entry) => entry.id === selectedJournalEntryId) ?? null,
+    [latestJournalEntries, selectedJournalEntryId],
+  );
+
   return (
     <section className="split-layout">
       <article className="panel">
@@ -140,11 +147,16 @@ export function JournalPage({
         <h3>Ultimele note contabile</h3>
         <label>
           Lista notelor contabile
-          <select className="accounts-overflow-select" size={15} defaultValue="">
+          <select
+            className="accounts-overflow-select"
+            size={15}
+            value={selectedJournalEntryId}
+            onChange={(event) => setSelectedJournalEntryId(event.target.value)}
+          >
             <option value="" disabled>
               Selectează nota contabilă
             </option>
-            {journalEntries.slice(0, 30).map((entry) => (
+            {latestJournalEntries.map((entry) => (
               <option key={entry.id} value={entry.id}>
                 {(entry.number ?? 'NC-nealocat')} · {new Date(entry.date).toLocaleDateString('ro-RO')} ·{' '}
                 {(entry.status ?? 'VALIDATED')} · {entry.description}
@@ -152,6 +164,25 @@ export function JournalPage({
             ))}
           </select>
         </label>
+        {selectedJournalEntry ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedJournalEntry.number ?? 'NC-nealocat'} · {selectedJournalEntry.description}</strong>
+              <span>{new Date(selectedJournalEntry.date).toLocaleDateString('ro-RO')}</span>
+            </header>
+            <p className="muted">Status: {selectedJournalEntry.status ?? 'VALIDATED'}</p>
+            <div className="journal-entry-preview-lines">
+              {selectedJournalEntry.lines.map((line) => (
+                <div key={line.id}>
+                  {line.account.code} - {line.account.name} | Debit: {Number(line.debit).toFixed(2)} | Credit:{' '}
+                  {Number(line.credit).toFixed(2)}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează o notă contabilă din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
