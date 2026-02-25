@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Asset } from '../types';
 
 interface AssetFormState {
@@ -44,8 +44,12 @@ export function AssetsPage({
   fmtCurrency,
   toNum,
 }: AssetsPageProps) {
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const selectedAsset = useMemo(() => assets.find((asset) => asset.id === selectedAssetId) ?? null, [assets, selectedAssetId]);
+  const selectedAssetLatestDepreciation = selectedAsset?.depreciationRecords[0] ?? null;
+
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Administrare mijloace fixe</h3>
         {canCreateAsset ? (
@@ -151,41 +155,52 @@ export function AssetsPage({
         ) : (
           <p className="muted">Nu ai permisiunea de a rula amortizarea.</p>
         )}
-      </article>
 
-      <article className="panel">
-        <h3>Registru mijloace fixe ({assets.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Cod</th>
-                <th>Denumire</th>
-                <th>Valoare</th>
-                <th>Reziduală</th>
-                <th>Metodă</th>
-                <th>Durată</th>
-                <th>Ultima amortizare</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assets.map((asset) => {
-                const latest = asset.depreciationRecords[0];
-                return (
-                  <tr key={asset.id}>
-                    <td>{asset.code ?? '-'}</td>
-                    <td>{asset.name}</td>
-                    <td>{fmtCurrency(toNum(asset.value))}</td>
-                    <td>{fmtCurrency(toNum(asset.residualValue))}</td>
-                    <td>{asset.depreciationMethod}</td>
-                    <td>{asset.usefulLifeMonths} luni</td>
-                    <td>{latest ? `${latest.period} (${fmtCurrency(toNum(latest.depreciationAmount))})` : 'Neamortizat'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <h3 style={{ marginTop: '1rem' }}>Registru mijloace fixe ({assets.length})</h3>
+        <label>
+          Lista mijloacelor fixe
+          <select
+            className="accounts-overflow-select"
+            size={12}
+            value={selectedAssetId}
+            onChange={(event) => setSelectedAssetId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează mijlocul fix
+            </option>
+            {assets.map((asset) => (
+              <option key={asset.id} value={asset.id}>
+                {asset.code ?? '-'} - {asset.name} · {fmtCurrency(toNum(asset.value))} ·{' '}
+                {asset.depreciationRecords[0]?.period ?? 'Neamortizat'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedAsset ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>
+                {selectedAsset.code ?? '-'} - {selectedAsset.name}
+              </strong>
+              <span>{selectedAsset.isActive ? 'Activ' : 'Inactiv'}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>Valoare: {fmtCurrency(toNum(selectedAsset.value))}</div>
+              <div>Valoare reziduală: {fmtCurrency(toNum(selectedAsset.residualValue))}</div>
+              <div>Metodă amortizare: {selectedAsset.depreciationMethod}</div>
+              <div>Durată: {selectedAsset.usefulLifeMonths} luni</div>
+              <div>Data punerii în funcțiune: {new Date(selectedAsset.startDate).toLocaleDateString('ro-RO')}</div>
+              <div>
+                Ultima amortizare:{' '}
+                {selectedAssetLatestDepreciation
+                  ? `${selectedAssetLatestDepreciation.period} (${fmtCurrency(toNum(selectedAssetLatestDepreciation.depreciationAmount))})`
+                  : 'Neamortizat'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează un mijloc fix din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
