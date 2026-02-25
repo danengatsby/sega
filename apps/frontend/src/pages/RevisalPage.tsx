@@ -66,7 +66,7 @@ export function RevisalPage({
   );
 
   return (
-    <section className="split-layout">
+    <section className="split-layout split-layout-single-column">
       <article className="panel">
         <h3>Generare export Revisal</h3>
         {canManageRevisal ? (
@@ -173,10 +173,7 @@ export function RevisalPage({
         ) : (
           <p className="muted">Doar rolurile cu drept de generare salarii pot confirma livrarea.</p>
         )}
-      </article>
-
-      <article className="panel">
-        <h3>Exporturi Revisal ({revisalExports.length})</h3>
+        <h3 style={{ marginTop: '1rem' }}>Exporturi Revisal ({revisalExports.length})</h3>
         <label>
           Lista exporturilor Revisal
           <select
