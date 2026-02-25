@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Partner } from '../types';
 
 interface PartnerFormState {
@@ -27,6 +27,12 @@ export function PartnersPage({
   busyKey,
   partners,
 }: PartnersPageProps) {
+  const [selectedPartnerId, setSelectedPartnerId] = useState('');
+  const selectedPartner = useMemo(
+    () => partners.find((partner) => partner.id === selectedPartnerId) ?? null,
+    [partners, selectedPartnerId],
+  );
+
   return (
     <section className="split-layout">
       <article className="panel">
@@ -77,28 +83,40 @@ export function PartnersPage({
 
       <article className="panel">
         <h3>Registru parteneri ({partners.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nume</th>
-                <th>Tip</th>
-                <th>CUI</th>
-                <th>IBAN</th>
-              </tr>
-            </thead>
-            <tbody>
-              {partners.map((partner) => (
-                <tr key={partner.id}>
-                  <td>{partner.name}</td>
-                  <td>{partner.type}</td>
-                  <td>{partner.cui ?? '-'}</td>
-                  <td>{partner.iban ?? '-'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <label>
+          Lista partenerilor
+          <select
+            className="accounts-overflow-select"
+            size={15}
+            value={selectedPartnerId}
+            onChange={(event) => setSelectedPartnerId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează partenerul
+            </option>
+            {partners.map((partner) => (
+              <option key={partner.id} value={partner.id}>
+                {partner.name} · {partner.type} · CUI: {partner.cui ?? '-'} · IBAN: {partner.iban ?? '-'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedPartner ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedPartner.name}</strong>
+              <span>{selectedPartner.type}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>CUI: {selectedPartner.cui ?? '-'}</div>
+              <div>IBAN: {selectedPartner.iban ?? '-'}</div>
+              <div>Email: {selectedPartner.email ?? '-'}</div>
+              <div>Telefon: {selectedPartner.phone ?? '-'}</div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează un partener din listă pentru afișarea în container.</p>
+        )}
       </article>
     </section>
   );
