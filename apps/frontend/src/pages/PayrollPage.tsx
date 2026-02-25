@@ -1,4 +1,4 @@
-import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
+import { useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Employee, PayrollRun } from '../types';
 
 interface EmployeeFormState {
@@ -15,6 +15,7 @@ interface PayrollPageProps {
   createEmployee: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
   canCreateEmployee: boolean;
   runPayroll: (event: React.FormEvent<HTMLFormElement>) => Promise<void>;
+  openJournalEntries: () => void;
   canRunPayroll: boolean;
   busyKey: string | null;
   payrollRuns: PayrollRun[];
@@ -29,6 +30,7 @@ export function PayrollPage({
   createEmployee,
   canCreateEmployee,
   runPayroll,
+  openJournalEntries,
   canRunPayroll,
   busyKey,
   payrollRuns,
@@ -46,6 +48,14 @@ export function PayrollPage({
     () => employees.find((employee) => employee.id === selectedEmployeeId) ?? null,
     [employees, selectedEmployeeId],
   );
+  const payrollRunsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+
+  function showPayrollRuns(): void {
+    if (!selectedPayrollRunId && payrollRuns.length > 0) {
+      setSelectedPayrollRunId(payrollRuns[0].id);
+    }
+    payrollRunsHeadingRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 
   return (
     <section className="split-layout split-layout-single-column">
@@ -113,11 +123,21 @@ export function PayrollPage({
             <button type="submit" disabled={busyKey === 'payroll'}>
               {busyKey === 'payroll' ? 'Procesare...' : 'Generează salarii + note contabile'}
             </button>
+            <div className="button-row">
+              <button type="button" className="ghost" onClick={showPayrollRuns}>
+                Afisare state salarii
+              </button>
+              <button type="button" className="ghost" onClick={openJournalEntries}>
+                Afisare note contabile
+              </button>
+            </div>
           </form>
         ) : (
           <p className="muted">Nu ai permisiunea de a genera state de salarii.</p>
         )}
-        <h3 style={{ marginTop: '1rem' }}>State salarii ({payrollRuns.length})</h3>
+        <h3 ref={payrollRunsHeadingRef} style={{ marginTop: '1rem' }}>
+          State salarii ({payrollRuns.length})
+        </h3>
         <label>
           Lista statelor de salarii
           <select

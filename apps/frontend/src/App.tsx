@@ -3170,6 +3170,7 @@ function App() {
           createEmployee={createEmployee}
           canCreateEmployee={canAction.createEmployee}
           runPayroll={runPayroll}
+          openJournalEntries={() => setModuleKey('journal')}
           canRunPayroll={canAction.runPayroll}
           busyKey={busyKey}
           payrollRuns={payrollRuns}
