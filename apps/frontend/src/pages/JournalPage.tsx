@@ -138,22 +138,20 @@ export function JournalPage({
 
       <article className="panel">
         <h3>Ultimele note contabile</h3>
-        <div className="timeline">
-          {journalEntries.slice(0, 30).map((entry) => (
-            <div key={entry.id} className="timeline-item">
-              <header>
-                <strong>{entry.number ?? 'NC-nealocat'} · {entry.description}</strong>
-                <span>{new Date(entry.date).toLocaleDateString('ro-RO')}</span>
-              </header>
-              <small>Status: {entry.status ?? 'VALIDATED'}</small>
-              <small>
-                {entry.lines
-                  .map((line) => `${line.account.code} D:${Number(line.debit).toFixed(2)} C:${Number(line.credit).toFixed(2)}`)
-                  .join(' | ')}
-              </small>
-            </div>
-          ))}
-        </div>
+        <label>
+          Lista notelor contabile
+          <select className="accounts-overflow-select" size={15} defaultValue="">
+            <option value="" disabled>
+              Selectează nota contabilă
+            </option>
+            {journalEntries.slice(0, 30).map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {(entry.number ?? 'NC-nealocat')} · {new Date(entry.date).toLocaleDateString('ro-RO')} ·{' '}
+                {(entry.status ?? 'VALIDATED')} · {entry.description}
+              </option>
+            ))}
+          </select>
+        </label>
       </article>
     </section>
   );
