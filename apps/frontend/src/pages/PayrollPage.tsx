@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useMemo, useState, type Dispatch, type SetStateAction } from 'react';
 import type { Employee, PayrollRun } from '../types';
 
 interface EmployeeFormState {
@@ -44,9 +44,20 @@ export function PayrollPage({
   fmtCurrency,
   toNum,
 }: PayrollPageProps) {
+  const [selectedPayrollRunId, setSelectedPayrollRunId] = useState('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+  const selectedPayrollRun = useMemo(
+    () => payrollRuns.find((run) => run.id === selectedPayrollRunId) ?? null,
+    [payrollRuns, selectedPayrollRunId],
+  );
+  const selectedEmployee = useMemo(
+    () => employees.find((employee) => employee.id === selectedEmployeeId) ?? null,
+    [employees, selectedEmployeeId],
+  );
+
   return (
-    <section className="split-layout payroll-layout">
-      <article className="panel payroll-admin-panel">
+    <section className="split-layout split-layout-single-column">
+      <article className="panel">
         <h3>Administrare salarii</h3>
         {canCreateEmployee ? (
           <form onSubmit={(event) => void createEmployee(event)} className="stack-form">
@@ -122,70 +133,81 @@ export function PayrollPage({
         ) : (
           <p className="muted">Nu ai permisiunea de a genera state de salarii.</p>
         )}
-      </article>
+        <h3 style={{ marginTop: '1rem' }}>State salarii ({payrollRuns.length})</h3>
+        <label>
+          Lista statelor de salarii
+          <select
+            className="accounts-overflow-select"
+            size={12}
+            value={selectedPayrollRunId}
+            onChange={(event) => setSelectedPayrollRunId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează statul
+            </option>
+            {payrollRuns.map((run) => (
+              <option key={run.id} value={run.id}>
+                {run.period} · Brut {fmtCurrency(toNum(run.totalGross))} · Net {fmtCurrency(toNum(run.totalNet))} · {run.status}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedPayrollRun ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>Stat salarii: {selectedPayrollRun.period}</strong>
+              <span>{selectedPayrollRun.status}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>Brut total: {fmtCurrency(toNum(selectedPayrollRun.totalGross))}</div>
+              <div>Net total: {fmtCurrency(toNum(selectedPayrollRun.totalNet))}</div>
+              <div>CAS: {fmtCurrency(toNum(selectedPayrollRun.totalCas))}</div>
+              <div>CASS: {fmtCurrency(toNum(selectedPayrollRun.totalCass))}</div>
+              <div>CAM: {fmtCurrency(toNum(selectedPayrollRun.totalCam))}</div>
+              <div>Impozit: {fmtCurrency(toNum(selectedPayrollRun.totalTax))}</div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează un stat de salarii din listă.</p>
+        )}
 
-      <article className="panel payroll-runs-panel">
-        <h3>State salarii ({payrollRuns.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Perioadă</th>
-                <th>Brut total</th>
-                <th>Net total</th>
-                <th>CAS</th>
-                <th>CASS</th>
-                <th>CAM</th>
-                <th>Impozit</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {payrollRuns.map((run) => (
-                <tr key={run.id}>
-                  <td>{run.period}</td>
-                  <td>{fmtCurrency(toNum(run.totalGross))}</td>
-                  <td>{fmtCurrency(toNum(run.totalNet))}</td>
-                  <td>{fmtCurrency(toNum(run.totalCas))}</td>
-                  <td>{fmtCurrency(toNum(run.totalCass))}</td>
-                  <td>{fmtCurrency(toNum(run.totalCam))}</td>
-                  <td>{fmtCurrency(toNum(run.totalTax))}</td>
-                  <td>{run.status}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </article>
-
-      <article className="panel payroll-employees-panel">
-        <h3>Angajați ({employees.length})</h3>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nume</th>
-                <th>CNP</th>
-                <th>Contract</th>
-                <th>Brut</th>
-                <th>Deducere</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.map((employee) => (
-                <tr key={employee.id}>
-                  <td>{employee.name}</td>
-                  <td>{employee.cnp}</td>
-                  <td>{employee.contractType}</td>
-                  <td>{fmtCurrency(toNum(employee.grossSalary))}</td>
-                  <td>{fmtCurrency(toNum(employee.personalDeduction))}</td>
-                  <td>{employee.isActive ? 'Activ' : 'Inactiv'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <h3 style={{ marginTop: '1rem' }}>Angajați ({employees.length})</h3>
+        <label>
+          Lista angajaților
+          <select
+            className="accounts-overflow-select"
+            size={12}
+            value={selectedEmployeeId}
+            onChange={(event) => setSelectedEmployeeId(event.target.value)}
+          >
+            <option value="" disabled>
+              Selectează angajatul
+            </option>
+            {employees.map((employee) => (
+              <option key={employee.id} value={employee.id}>
+                {employee.name} · {employee.contractType} · {fmtCurrency(toNum(employee.grossSalary))} ·{' '}
+                {employee.isActive ? 'Activ' : 'Inactiv'}
+              </option>
+            ))}
+          </select>
+        </label>
+        {selectedEmployee ? (
+          <div className="timeline-item journal-entry-preview">
+            <header>
+              <strong>{selectedEmployee.name}</strong>
+              <span>{selectedEmployee.isActive ? 'Activ' : 'Inactiv'}</span>
+            </header>
+            <div className="journal-entry-preview-lines">
+              <div>CNP: {selectedEmployee.cnp}</div>
+              <div>Contract: {selectedEmployee.contractType}</div>
+              <div>Salariu brut: {fmtCurrency(toNum(selectedEmployee.grossSalary))}</div>
+              <div>Deducere personală: {fmtCurrency(toNum(selectedEmployee.personalDeduction))}</div>
+              <div>Data angajării: {new Date(selectedEmployee.hiredAt).toLocaleDateString('ro-RO')}</div>
+            </div>
+          </div>
+        ) : (
+          <p className="muted">Selectează un angajat din listă.</p>
+        )}
       </article>
     </section>
   );
